@@ -1,0 +1,18 @@
+INSTALACAO AUTOMATICA (recomendado):
+
+  cd d:\Apps\cstracking
+  npm run install:gsi
+
+Informe seu e-mail cadastrado no app.
+
+---
+
+MANUAL: copie gamestate_integration.example.cfg para:
+
+  ...\Counter-Strike Global Offensive\game\csgo\cfg\gamestate_integration_cstracking.cfg
+
+IMPORTANTE: pasta cfg diretamente (NAO use cfg\gamestate_integration\).
+
+Substitua SEU_GSI_TOKEN_AQUI pelo token do dashboard.
+Use http://127.0.0.1:3000 na uri.
+Reinicie o CS2 apos criar o arquivo.

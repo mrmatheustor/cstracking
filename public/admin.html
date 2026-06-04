@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — CS2 Tracking</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div class="app-shell min-h-screen">
+    <nav class="glass-nav sticky top-0 z-20">
+      <div class="nav-inner">
+        <a href="/profiles" class="brand">
+          <span class="brand-mark">CS</span>
+          <span>Tracking</span>
+        </a>
+        <div id="nav-authed" class="nav-links">
+          <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
+          <a id="nav-sala-link" data-nav="/sala" href="/sala" class="nav-link">Sala</a>
+          <a id="nav-conta-link" data-nav="/conta" href="/conta" class="nav-link">Minha conta</a>
+          <a data-nav="/admin" href="/admin" class="nav-link" style="color: #fcd34d;">Admin</a>
+          <span class="nav-sep hidden sm:inline">|</span>
+          <span id="nav-username" class="nav-link" style="cursor: default;"></span>
+          <span id="nav-role" class="badge-admin"></span>
+          <button id="logout-btn" type="button" class="btn-ghost text-xs">Sair</button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 pb-16">
+      <header class="page-header">
+        <p class="page-eyebrow" style="color: #fcd34d;">Administração</p>
+        <h1 class="text-3xl font-bold tracking-tight">Painel Admin</h1>
+        <p class="text-slate-500 text-sm mt-2">Monitoramento em tempo real, permissoes e integracao GSI.</p>
+      </header>
+
+      <div class="flex flex-wrap gap-2 mb-8 p-1 bg-slate-900/80 rounded-xl border border-slate-800/80 w-fit">
+        <button type="button" data-tab="monitor" class="tab-btn tab-active px-5 py-2.5 rounded-lg text-sm font-medium text-slate-400 border border-transparent">Monitor</button>
+        <button type="button" data-tab="users" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium text-slate-400 border border-transparent">Usuarios</button>
+        <button type="button" data-tab="gsi" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium text-slate-400 border border-transparent">GSI / CS2</button>
+      </div>
+
+      <div id="tab-monitor" class="space-y-8">
+        <section>
+          <div class="flex items-center gap-2 mb-4">
+            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            <h2 class="font-semibold text-green-400">Ao vivo agora</h2>
+          </div>
+          <p id="live-empty" class="text-slate-500 text-sm mb-4">Nenhuma partida ao vivo.</p>
+          <div id="live-list" class="grid gap-4 sm:grid-cols-2"></div>
+        </section>
+        <section>
+          <h2 class="font-semibold mb-4">Historico recente (servidor)</h2>
+          <p id="recent-empty" class="text-slate-500 text-sm">Nenhuma partida.</p>
+          <div id="recent-list" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4"></div>
+        </section>
+      </div>
+
+      <div id="tab-users" class="hidden">
+        <p id="admin-msg" class="text-sm mb-4"></p>
+        <div class="card overflow-hidden">
+          <table class="w-full text-left text-sm">
+            <thead class="text-slate-500 text-xs uppercase tracking-wider bg-slate-950/50">
+              <tr>
+                <th class="p-4 font-medium">Usuario</th>
+                <th class="p-4 font-medium">E-mail</th>
+                <th class="p-4 font-medium">Papel</th>
+                <th class="p-4 font-medium">Partidas</th>
+                <th class="p-4 font-medium">Perfil</th>
+                <th class="p-4 font-medium">Permissao</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-body" class="divide-y divide-slate-800/80"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="tab-gsi" class="hidden max-w-2xl">
+        <div id="gsi-panel-root"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/match-ui.js"></script>
+  <script src="/js/gsi-setup.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

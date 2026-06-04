@@ -1,0 +1,23 @@
+<!-- Referência do menu — copiar em cada página -->
+<nav class="glass-nav sticky top-0 z-20">
+  <div class="nav-inner">
+    <a href="/profiles" class="brand">
+      <span class="brand-mark">CS</span>
+      <span>Tracking</span>
+    </a>
+    <div id="nav-guest" class="nav-links">
+      <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
+      <a href="/" class="btn-primary text-sm py-2 px-4 no-underline">Entrar</a>
+    </div>
+    <div id="nav-authed" class="nav-links hidden">
+      <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
+      <a id="nav-sala-link" data-nav="/sala" href="/sala" class="nav-link">Sala</a>
+      <a id="nav-conta-link" data-nav="/conta" href="/conta" class="nav-link">Minha conta</a>
+      <a id="nav-admin-link" data-nav="/admin" href="/admin" class="nav-link hidden" style="color: #fcd34d;">Admin</a>
+      <span class="nav-sep hidden sm:inline">|</span>
+      <span id="nav-username" class="nav-link" style="cursor: default;"></span>
+      <span id="nav-role" class="badge-user"></span>
+      <button id="logout-btn" type="button" class="btn-ghost text-xs">Sair</button>
+    </div>
+  </div>
+</nav>

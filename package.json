@@ -1,0 +1,22 @@
+{
+  "name": "cstracking",
+  "version": "1.0.0",
+  "description": "Tracking de partidas personalizadas CS2 via Game State Integration",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch --watch-path=.env server.js",
+    "start": "node server.js",
+    "install:gsi": "powershell -ExecutionPolicy Bypass -File scripts/install-gsi-cfg.ps1"
+  },
+  "keywords": ["cs2", "gsi", "tracking"],
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7",
+    "uuid": "^9.0.0"
+  }
+}

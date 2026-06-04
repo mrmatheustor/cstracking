@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minha conta — CS2 Tracking</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div class="app-shell min-h-screen">
+    <nav class="glass-nav sticky top-0 z-20">
+      <div class="nav-inner">
+        <a href="/profiles" class="brand">
+          <span class="brand-mark">CS</span>
+          <span>Tracking</span>
+        </a>
+        <div id="nav-authed" class="nav-links">
+          <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
+          <a id="nav-sala-link" data-nav="/sala" href="/sala" class="nav-link">Sala</a>
+          <a id="nav-conta-link" data-nav="/conta" href="/conta" class="nav-link">Minha conta</a>
+          <a id="nav-admin-link" data-nav="/admin" href="/admin" class="nav-link hidden" style="color: #fcd34d;">Admin</a>
+          <span class="nav-sep hidden sm:inline">|</span>
+          <span id="nav-username" class="nav-link" style="cursor: default;">...</span>
+          <span id="nav-role" class="badge-user">...</span>
+          <button id="logout-btn" type="button" class="btn-ghost text-xs">Sair</button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-4 py-8 pb-16">
+      <section class="hero-account mb-8">
+        <div class="flex flex-wrap items-start gap-5">
+          <div id="avatar" class="avatar">?</div>
+          <div class="flex-1 min-w-0">
+            <p class="page-eyebrow">Minha conta</p>
+            <h1 id="hero-username" class="page-title" style="font-size: 1.85rem;">...</h1>
+            <p id="hero-email" class="page-desc" style="margin-top: 0.35rem;">...</p>
+            <p class="text-xs mt-2" style="color: var(--muted);">Membro desde <span id="hero-since">—</span></p>
+          </div>
+          <a id="link-perfil-publico" href="#" class="btn-ghost text-sm shrink-0">Ver perfil público →</a>
+        </div>
+      </section>
+
+      <section id="active-room-card" class="hidden card p-5 mb-6 border-green-500/30">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p class="text-xs text-green-400 font-medium uppercase tracking-wider">Sala ativa</p>
+            <p id="active-room-title" class="font-semibold mt-1">...</p>
+            <p class="text-sm mt-1">Código <span id="active-room-code" class="font-mono text-orange-400 tracking-widest"></span> · <span id="active-room-status"></span></p>
+          </div>
+          <a id="active-room-link" href="/sala" class="btn-primary text-sm no-underline shrink-0">Abrir sala →</a>
+        </div>
+      </section>
+
+      <section id="gsi-panel-root" class="mb-8"></section>
+
+      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div class="stat-card">
+          <p class="stat-label">Partidas <span id="filter-badge" class="hidden text-orange-400/80">(filtro)</span></p>
+          <p id="stat-matches" class="stat-value text-orange-400 mt-2">0</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">K/D</p>
+          <p id="stat-kd" class="stat-value mt-2">0.00</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Abates</p>
+          <p id="stat-kills" class="stat-value text-green-400 mt-2">0</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">MVPs</p>
+          <p id="stat-mvps" class="stat-value mt-2">0</p>
+        </div>
+      </section>
+
+      <section class="card p-4 mb-8">
+        <p class="stat-label mb-3">Filtrar histórico</p>
+        <form id="filter-form" class="filter-bar">
+          <div>
+            <label class="text-xs text-slate-600 block mb-1" for="filter-days">Período</label>
+            <select id="filter-days" class="input-field text-sm py-2">
+              <option value="">Tudo</option>
+              <option value="7">7 dias</option>
+              <option value="30">30 dias</option>
+              <option value="90">90 dias</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-600 block mb-1" for="filter-map">Mapa</label>
+            <select id="filter-map" class="input-field text-sm py-2">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-600 block mb-1" for="filter-mode">Modo</label>
+            <select id="filter-mode" class="input-field text-sm py-2">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <button type="button" id="filter-reset" class="btn-ghost text-sm">Limpar</button>
+        </form>
+      </section>
+
+      <section class="grid md:grid-cols-2 gap-6 mb-8">
+        <div class="card p-5">
+          <h3 class="font-semibold text-sm mb-1">K/D por partida</h3>
+          <p class="text-xs text-slate-500 mb-4">Últimas partidas do filtro</p>
+          <div id="chart-kd"></div>
+        </div>
+        <div class="card p-5">
+          <h3 class="font-semibold text-sm mb-1">Partidas por semana</h3>
+          <p class="text-xs text-slate-500 mb-4">Volume no período</p>
+          <div id="chart-weeks"></div>
+        </div>
+      </section>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <section class="lg:col-span-2 card overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
+            <h2 class="font-semibold">Histórico de partidas</h2>
+            <span id="kda-summary" class="text-xs text-slate-500">K/D/A —</span>
+          </div>
+          <div id="matches-list"></div>
+          <div id="matches-empty" class="empty-state hidden">
+            <p class="font-medium text-slate-300">Nenhuma partida neste filtro</p>
+            <p class="text-sm mt-2 max-w-sm mx-auto text-slate-500">Altere os filtros ou jogue com o GSI ativo.</p>
+          </div>
+        </section>
+
+        <aside class="space-y-4">
+          <div id="sala-idle-card" class="card p-5 border-orange-500/20">
+            <h3 class="font-semibold text-sm mb-2">Sala de partida</h3>
+            <p class="text-xs text-slate-500 mb-4">Crie um código para scrims em grupo.</p>
+            <a href="/sala" class="btn-primary block text-center text-sm no-underline">Criar ou entrar →</a>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-semibold text-sm mb-3">Resumo</h3>
+            <dl class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <dt class="text-slate-500">Mortes</dt>
+                <dd id="stat-deaths" class="font-medium">0</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-slate-500">Assistências</dt>
+                <dd id="stat-assists" class="font-medium">0</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-slate-500">Ranking</dt>
+                <dd id="stat-rank" class="font-medium text-orange-400">—</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-semibold text-sm mb-2">Perfil público</h3>
+            <a id="share-profile" href="#" class="btn-ghost block text-center text-sm no-underline w-full">Abrir perfil →</a>
+          </div>
+
+          <div id="admin-hint" class="hidden card p-5 border-amber-500/20">
+            <p class="text-xs text-amber-400/90 font-medium mb-1">Administrador</p>
+            <a href="/admin" class="text-sm text-amber-400 hover:underline">Painel Admin →</a>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/match-ui.js"></script>
+  <script src="/js/charts.js"></script>
+  <script src="/js/gsi-setup.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/conta.js"></script>
+</body>
+</html>
