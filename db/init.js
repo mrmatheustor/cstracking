@@ -2,7 +2,9 @@ const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(__dirname, '..', 'data');
 const DB_PATH = path.join(DATA_DIR, 'cstracking.db');
 
 function run(db, sql, params = []) {
@@ -38,6 +40,7 @@ async function initDatabase() {
   }
 
   const db = new sqlite3.Database(DB_PATH);
+  console.log(`[DB] SQLite: ${DB_PATH}`);
 
   await run(
     db,

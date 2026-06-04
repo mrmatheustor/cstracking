@@ -161,6 +161,17 @@ http://localhost:3000/api/gsi/live/SEU_GSI_TOKEN
 | `JWT_SECRET` | (obrigatório em produção) |
 | `JWT_EXPIRES_IN` | `7d` |
 | `ADMIN_EMAIL` | e-mail promovido a admin |
+| `GSI_PUBLIC_URL` | URL HTTPS do deploy (GSI no CS2) |
+| `DATA_DIR` | `./data` (pasta do SQLite) |
+
+## Deploy (Railway + volume)
+
+1. Conecte o repositório GitHub e defina `JWT_SECRET`, `GSI_PUBLIC_URL` (URL HTTPS do app).
+2. Crie um **Volume** com mount path `/data` (ou outro path fixo).
+3. Variável **`DATA_DIR`** = mesmo mount path (ex.: `DATA_DIR=/data`).
+4. Redeploy. O arquivo `cstracking.db` ficará no volume e persiste entre deploys.
+
+Se o mount path do volume for exatamente `data` dentro do app (ex. `/app/data`), pode omitir `DATA_DIR` — o padrão local já usa `./data`.
 
 ## Licença
 
