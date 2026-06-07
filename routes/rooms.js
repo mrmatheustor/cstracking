@@ -9,6 +9,15 @@ const router = express.Router();
 router.use(authMiddleware);
 
 router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const db = await getDb();
+    const rooms = await roomService.listPublicRooms(db, req.user.id);
+    res.json({ rooms });
+  })
+);
+
+router.get(
   '/mine',
   asyncHandler(async (req, res) => {
     const db = await getDb();
@@ -29,8 +38,7 @@ router.post(
       const payload = await roomService.createRoom(db, req.user.id, {
         title: req.body?.title,
         auto_start: req.body?.auto_start !== false,
-        map_name: req.body?.map_name,
-        lobby_password: req.body?.lobby_password,
+        password: req.body?.password,
       });
       res.status(201).json(payload);
     } catch (err) {
@@ -50,12 +58,16 @@ router.post(
   asyncHandler(async (req, res) => {
     const db = await getDb();
     const code = req.body?.code;
+    const password = req.body?.password;
     try {
-      const payload = await roomService.joinRoom(db, req.user.id, code);
+      const payload = await roomService.joinRoom(db, req.user.id, code, password);
       res.json(payload);
     } catch (err) {
       if (err.code === 'ALREADY_IN_ROOM') {
         return res.status(409).json({ error: err.message });
+      }
+      if (err.code === 'PASSWORD_REQUIRED' || err.code === 'WRONG_PASSWORD') {
+        return res.status(err.status || 403).json({ error: err.message, code: err.code });
       }
       if (err.status) {
         return res.status(err.status).json({ error: err.message });
@@ -85,7 +97,7 @@ router.get(
     const db = await getDb();
     const room = await roomService.getRoomByCode(db, req.params.code);
     if (!room) {
-      return res.status(404).json({ error: 'Sala não encontrada' });
+      return res.status(404).json({ error: 'Lobby não encontrado' });
     }
 
     const member = await db.get(
@@ -93,7 +105,7 @@ router.get(
       [room.id, req.user.id]
     );
     if (!member) {
-      return res.status(403).json({ error: 'Você não participa desta sala' });
+      return res.status(403).json({ error: 'Você não participa deste lobby' });
     }
 
     const result = await roomService.buildRoomResult(db, room.id);
@@ -107,12 +119,12 @@ router.get(
     const db = await getDb();
     const room = await roomService.getRoomByCode(db, req.params.code);
     if (!room) {
-      return res.status(404).json({ error: 'Sala não encontrada' });
+      return res.status(404).json({ error: 'Lobby não encontrado' });
     }
 
     const payload = await roomService.getRoomPayload(db, room.code, req.user.id);
     if (!payload.is_member) {
-      return res.status(403).json({ error: 'Entre na sala com o código primeiro' });
+      return res.status(403).json({ error: 'Entre no lobby com o código primeiro' });
     }
 
     res.json(payload);

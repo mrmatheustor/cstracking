@@ -24,8 +24,16 @@ function buildGsiUri(baseUrl, gsiToken) {
   return `${base}/api/gsi/live/${gsiToken}`;
 }
 
-function buildGsiCfgContent(gsiToken, baseUrl) {
+function buildGsiCfgContent(gsiToken, baseUrl, authToken) {
   const uri = buildGsiUri(baseUrl, gsiToken);
+
+  const authBlock =
+    authToken &&
+    `
+    "auth"
+    {
+        "token" "${authToken}"
+    }`;
 
   return `"CS2 Tracking"
 {
@@ -33,7 +41,7 @@ function buildGsiCfgContent(gsiToken, baseUrl) {
     "timeout" "5.0"
     "buffer"  "0.1"
     "throttle" "0.1"
-    "heartbeat" "30.0"
+    "heartbeat" "30.0"${authBlock || ''}
     "data"
     {
         "provider"      "1"

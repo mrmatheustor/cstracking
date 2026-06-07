@@ -6,8 +6,16 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   gsi_token TEXT NOT NULL UNIQUE,
+  gsi_auth_token TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'user',
   steam_id TEXT,
+  login_via_steam INTEGER NOT NULL DEFAULT 0,
+  avatar_from_steam INTEGER NOT NULL DEFAULT 0,
+  steam_profile_synced_at TEXT,
+  mmr INTEGER NOT NULL DEFAULT 1000,
+  level_xp INTEGER NOT NULL DEFAULT 0,
+  rated_wins INTEGER NOT NULL DEFAULT 0,
+  rated_losses INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -21,7 +29,9 @@ CREATE TABLE IF NOT EXISTS matches (
   score_t INTEGER DEFAULT 0,
   game_mode TEXT DEFAULT 'unknown',
   owner_steamid TEXT,
+  owner_team TEXT,
   room_id INTEGER,
+  rating_applied INTEGER NOT NULL DEFAULT 0,
   finished INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -52,6 +62,24 @@ CREATE TABLE IF NOT EXISTS match_rooms (
   started_at TEXT,
   closed_at TEXT,
   FOREIGN KEY (host_user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS rating_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  match_id INTEGER NOT NULL UNIQUE,
+  won INTEGER NOT NULL,
+  performance REAL,
+  opponent_mmr INTEGER,
+  mmr_before INTEGER NOT NULL,
+  mmr_delta INTEGER NOT NULL,
+  mmr_after INTEGER NOT NULL,
+  xp_before INTEGER NOT NULL,
+  xp_delta INTEGER NOT NULL,
+  xp_after INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS match_room_members (

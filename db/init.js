@@ -97,7 +97,7 @@ async function initDatabase() {
     await run(db, `ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'`);
   }
 
-  const matchCols = await all(db, `PRAGMA table_info(matches)`);
+  let matchCols = await all(db, `PRAGMA table_info(matches)`);
   if (!matchCols.some((c) => c.name === 'game_mode')) {
     await run(db, `ALTER TABLE matches ADD COLUMN game_mode TEXT DEFAULT 'unknown'`);
   }
@@ -106,6 +106,10 @@ async function initDatabase() {
   }
   if (!matchCols.some((c) => c.name === 'room_id')) {
     await run(db, `ALTER TABLE matches ADD COLUMN room_id INTEGER REFERENCES match_rooms(id) ON DELETE SET NULL`);
+  }
+  matchCols = await all(db, `PRAGMA table_info(matches)`);
+  if (!matchCols.some((c) => c.name === 'owner_team')) {
+    await run(db, `ALTER TABLE matches ADD COLUMN owner_team TEXT`);
   }
 
   await run(
@@ -146,11 +150,102 @@ async function initDatabase() {
   if (!roomCols.some((c) => c.name === 'lobby_password')) {
     await run(db, `ALTER TABLE match_rooms ADD COLUMN lobby_password TEXT`);
   }
+  roomCols = await all(db, `PRAGMA table_info(match_rooms)`);
+  if (!roomCols.some((c) => c.name === 'join_password_hash')) {
+    await run(db, `ALTER TABLE match_rooms ADD COLUMN join_password_hash TEXT`);
+  }
 
   const userColsSteam = await all(db, `PRAGMA table_info(users)`);
   if (!userColsSteam.some((c) => c.name === 'steam_id')) {
     await run(db, `ALTER TABLE users ADD COLUMN steam_id TEXT`);
   }
+
+  let userColsRating = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsRating.some((c) => c.name === 'mmr')) {
+    await run(db, `ALTER TABLE users ADD COLUMN mmr INTEGER NOT NULL DEFAULT 1000`);
+  }
+  userColsRating = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsRating.some((c) => c.name === 'level_xp')) {
+    await run(db, `ALTER TABLE users ADD COLUMN level_xp INTEGER NOT NULL DEFAULT 0`);
+  }
+  userColsRating = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsRating.some((c) => c.name === 'rated_wins')) {
+    await run(db, `ALTER TABLE users ADD COLUMN rated_wins INTEGER NOT NULL DEFAULT 0`);
+  }
+  userColsRating = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsRating.some((c) => c.name === 'rated_losses')) {
+    await run(db, `ALTER TABLE users ADD COLUMN rated_losses INTEGER NOT NULL DEFAULT 0`);
+  }
+  userColsRating = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsRating.some((c) => c.name === 'avatar_icon')) {
+    await run(db, `ALTER TABLE users ADD COLUMN avatar_icon TEXT NOT NULL DEFAULT 'default'`);
+  }
+  userColsRating = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsRating.some((c) => c.name === 'avatar_url')) {
+    await run(db, `ALTER TABLE users ADD COLUMN avatar_url TEXT`);
+  }
+
+  let userColsGsi = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsGsi.some((c) => c.name === 'gsi_auth_token')) {
+    await run(db, `ALTER TABLE users ADD COLUMN gsi_auth_token TEXT`);
+  }
+  const { v4: uuidv4 } = require('uuid');
+  const usersNeedGsiAuth = await all(
+    db,
+    `SELECT id FROM users WHERE gsi_auth_token IS NULL OR gsi_auth_token = ''`
+  );
+  for (const row of usersNeedGsiAuth) {
+    await run(db, `UPDATE users SET gsi_auth_token = ? WHERE id = ?`, [
+      uuidv4().replace(/-/g, ''),
+      row.id,
+    ]);
+  }
+
+  let userColsSteamLogin = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsSteamLogin.some((c) => c.name === 'login_via_steam')) {
+    await run(db, `ALTER TABLE users ADD COLUMN login_via_steam INTEGER NOT NULL DEFAULT 0`);
+  }
+
+  await run(
+    db,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_steam_id ON users(steam_id) WHERE steam_id IS NOT NULL AND steam_id != ''`
+  );
+
+  let userColsAvatarSteam = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsAvatarSteam.some((c) => c.name === 'avatar_from_steam')) {
+    await run(db, `ALTER TABLE users ADD COLUMN avatar_from_steam INTEGER NOT NULL DEFAULT 0`);
+  }
+  userColsAvatarSteam = await all(db, `PRAGMA table_info(users)`);
+  if (!userColsAvatarSteam.some((c) => c.name === 'steam_profile_synced_at')) {
+    await run(db, `ALTER TABLE users ADD COLUMN steam_profile_synced_at TEXT`);
+  }
+
+  matchCols = await all(db, `PRAGMA table_info(matches)`);
+  if (!matchCols.some((c) => c.name === 'rating_applied')) {
+    await run(db, `ALTER TABLE matches ADD COLUMN rating_applied INTEGER NOT NULL DEFAULT 0`);
+  }
+
+  await run(
+    db,
+    `CREATE TABLE IF NOT EXISTS rating_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      match_id INTEGER NOT NULL UNIQUE,
+      won INTEGER NOT NULL,
+      performance REAL,
+      opponent_mmr INTEGER,
+      mmr_before INTEGER NOT NULL,
+      mmr_delta INTEGER NOT NULL,
+      mmr_after INTEGER NOT NULL,
+      xp_before INTEGER NOT NULL,
+      xp_delta INTEGER NOT NULL,
+      xp_after INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+    )`
+  );
+  await run(db, `CREATE INDEX IF NOT EXISTS idx_rating_events_user ON rating_events(user_id)`);
 
   const adminEmails = [
     (process.env.ADMIN_EMAIL || '').trim().toLowerCase(),

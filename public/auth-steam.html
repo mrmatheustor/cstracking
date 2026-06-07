@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login Steam — CS2 Tracking</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div class="app-shell min-h-screen flex flex-col items-center justify-center px-4">
+    <div class="card p-8 max-w-md w-full text-center">
+      <p id="steam-auth-status" class="text-sm text-slate-400">Conectando conta Steam…</p>
+      <p id="steam-auth-error" class="text-sm text-red-400 hidden mt-2"></p>
+      <a id="steam-auth-back" href="/" class="btn-ghost inline-block mt-6 no-underline hidden">Voltar ao login</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+    (function () {
+      const api = window.CSTrackingAPI;
+      const statusEl = document.getElementById('steam-auth-status');
+      const errorEl = document.getElementById('steam-auth-error');
+      const backEl = document.getElementById('steam-auth-back');
+
+      const errors = {
+        steam_not_configured: 'Login Steam não está configurado no servidor.',
+        steam_auth_failed: 'A Steam não confirmou o login. Tente novamente.',
+        steam_id_missing: 'Não foi possível obter seu Steam ID.',
+        steam_auth_error: 'Erro ao concluir login Steam.',
+      };
+
+      const params = new URLSearchParams(window.location.search);
+      const errorCode = params.get('error');
+      if (errorCode) {
+        statusEl.textContent = 'Não foi possível entrar';
+        errorEl.textContent = errors[errorCode] || 'Falha no login Steam.';
+        errorEl.classList.remove('hidden');
+        backEl.classList.remove('hidden');
+        return;
+      }
+
+      const hash = new URLSearchParams(window.location.hash.slice(1));
+      const token = hash.get('token');
+      if (!token) {
+        statusEl.textContent = 'Sessão inválida';
+        errorEl.textContent = 'Token ausente. Inicie o login pela página inicial.';
+        errorEl.classList.remove('hidden');
+        backEl.classList.remove('hidden');
+        return;
+      }
+
+      api.setToken(token);
+      api
+        .apiRequest('/api/user/profile')
+        .then(({ user }) => {
+          statusEl.textContent = 'Entrada confirmada. Redirecionando…';
+          window.CSTrackingNav.redirectAfterLogin(user);
+        })
+        .catch(() => {
+          api.setToken(null);
+          statusEl.textContent = 'Sessão inválida';
+          errorEl.textContent = 'Não foi possível carregar sua conta.';
+          errorEl.classList.remove('hidden');
+          backEl.classList.remove('hidden');
+        });
+    })();
+  </script>
+</body>
+</html>

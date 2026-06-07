@@ -28,4 +28,23 @@ function signToken(payload) {
   });
 }
 
-module.exports = { authMiddleware, signToken, JWT_SECRET };
+function optionalAuthMiddleware(req, res, next) {
+  try {
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) {
+      return next();
+    }
+    const token = header.slice(7);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = {
+      id: decoded.id,
+      username: decoded.username,
+      role: decoded.role || 'user',
+    };
+  } catch {
+    /* visitante sem token válido */
+  }
+  next();
+}
+
+module.exports = { authMiddleware, optionalAuthMiddleware, signToken, JWT_SECRET };

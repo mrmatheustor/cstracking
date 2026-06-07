@@ -1,13 +1,13 @@
 const api = window.CSTrackingAPI;
 const UI = window.MatchUI;
 
-function sortPlayers(stats, ownerSteamid) {
-  const ownerId = (ownerSteamid || '').trim();
+function sortPlayers(stats, ownerSteamid, userSteamId) {
+  const SteamId = window.CSTrackingSteamId;
   const copy = [...stats];
   copy.sort((a, b) => {
-    const aSelf = ownerId && (a.player_steamid || '').trim() === ownerId;
-    const bSelf = ownerId && (b.player_steamid || '').trim() === ownerId;
-    if (aSelf !== bSelf) return aSelf ? -1 : 1;
+    const aSelf = SteamId?.findPlayerStatBySteamIds([a], ownerSteamid, userSteamId);
+    const bSelf = SteamId?.findPlayerStatBySteamIds([b], ownerSteamid, userSteamId);
+    if (!!aSelf !== !!bSelf) return aSelf ? -1 : 1;
     return (b.score || 0) - (a.score || 0) || (b.kills || 0) - (a.kills || 0);
   });
   return copy;
@@ -30,13 +30,17 @@ function renderScoreboard(match, stats) {
   countEl.textContent = `${stats.length} jogador${stats.length !== 1 ? 'es' : ''}`;
   if (stats.length > 1) hint.classList.remove('hidden');
 
-  const ownerId = (match.owner_steamid || '').trim();
-  const sorted = sortPlayers(stats, ownerId);
+  const ownerId = match.owner_steamid || '';
+  const userSteamId = match.user_steam_id || '';
+  const sorted = sortPlayers(stats, ownerId, userSteamId);
 
   body.innerHTML = sorted
     .map((p, i) => {
-      const isSelf =
-        ownerId && (p.player_steamid || '').trim() === ownerId;
+      const isSelf = !!window.CSTrackingSteamId?.findPlayerStatBySteamIds(
+        [p],
+        ownerId,
+        userSteamId
+      );
       const rowClass = isSelf ? 'scoreboard-row-self' : '';
       return `
       <tr class="${rowClass}">
@@ -56,7 +60,7 @@ function renderScoreboard(match, stats) {
     .join('');
 }
 
-function renderHeader(detail, loggedUser) {
+function renderHeader(detail) {
   const { match, self_stat, scoreboard_count } = detail;
   const header = document.getElementById('match-header');
   header.classList.remove('hidden');
@@ -79,15 +83,6 @@ function renderHeader(detail, loggedUser) {
     selfEl.textContent = `Sua performance: ${self_stat.kills}/${self_stat.deaths}/${self_stat.assists} · K/D ${UI.kdRatio(self_stat.kills, self_stat.deaths)}`;
   }
 
-  const back = document.getElementById('back-link');
-  if (loggedUser?.id === match.user_id) {
-    back.href = '/conta';
-    back.textContent = '← Minha conta';
-  } else {
-    back.href = `/profile?id=${match.user_id}`;
-    back.textContent = `← Perfil de ${match.owner_username}`;
-  }
-
   document.title = `${UI.mapDisplayName(match.map_name)} — ${match.owner_username}`;
 }
 
@@ -105,7 +100,7 @@ async function load() {
 
   try {
     const detail = await api.apiRequest(`/api/profiles/${userId}/matches/${matchId}`);
-    renderHeader(detail, loggedUser);
+    renderHeader(detail);
     renderScoreboard(detail.match, detail.player_stats);
   } catch (err) {
     const el = document.getElementById('match-error');

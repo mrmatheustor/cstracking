@@ -18,8 +18,9 @@
         </a>
         <div id="nav-authed" class="nav-links">
           <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
-          <a id="nav-sala-link" data-nav="/sala" href="/sala" class="nav-link">Sala</a>
-          <a id="nav-conta-link" data-nav="/conta" href="/conta" class="nav-link">Minha conta</a>
+          <a id="nav-lobby-link" data-nav="/lobby" href="/lobby" class="nav-link">Lobby</a>
+          <a id="nav-profile-link" data-nav="/profile" href="#" class="nav-link">Perfil</a>
+          <a id="nav-settings-link" data-nav="/configuracoes" href="/configuracoes" class="nav-link">Configurações</a>
           <a data-nav="/admin" href="/admin" class="nav-link" style="color: #fcd34d;">Admin</a>
           <span class="nav-sep hidden sm:inline">|</span>
           <span id="nav-username" class="nav-link" style="cursor: default;"></span>
@@ -33,13 +34,12 @@
       <header class="page-header">
         <p class="page-eyebrow" style="color: #fcd34d;">Administração</p>
         <h1 class="text-3xl font-bold tracking-tight">Painel Admin</h1>
-        <p class="text-slate-500 text-sm mt-2">Monitoramento em tempo real, permissoes e integracao GSI.</p>
+        <p class="text-slate-500 text-sm mt-2">Monitoramento em tempo real e permissoes de usuarios.</p>
       </header>
 
       <div class="flex flex-wrap gap-2 mb-8 p-1 bg-slate-900/80 rounded-xl border border-slate-800/80 w-fit">
         <button type="button" data-tab="monitor" class="tab-btn tab-active px-5 py-2.5 rounded-lg text-sm font-medium text-slate-400 border border-transparent">Monitor</button>
         <button type="button" data-tab="users" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium text-slate-400 border border-transparent">Usuarios</button>
-        <button type="button" data-tab="gsi" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium text-slate-400 border border-transparent">GSI / CS2</button>
       </div>
 
       <div id="tab-monitor" class="space-y-8">
@@ -67,6 +67,7 @@
                 <th class="p-4 font-medium">Usuario</th>
                 <th class="p-4 font-medium">E-mail</th>
                 <th class="p-4 font-medium">Papel</th>
+                <th class="p-4 font-medium">MMR</th>
                 <th class="p-4 font-medium">Partidas</th>
                 <th class="p-4 font-medium">Perfil</th>
                 <th class="p-4 font-medium">Permissao</th>
@@ -76,16 +77,15 @@
           </table>
         </div>
       </div>
-
-      <div id="tab-gsi" class="hidden max-w-2xl">
-        <div id="gsi-panel-root"></div>
-      </div>
     </main>
   </div>
 
   <script src="/js/api.js"></script>
-  <script src="/js/match-ui.js"></script>
+  <script src="/js/avatars.js"></script>
   <script src="/js/gsi-setup.js"></script>
+  <script src="/js/shell.js"></script>
+  <script src="/js/steam-id.js"></script>
+  <script src="/js/match-ui.js"></script>
   <script src="/js/nav.js"></script>
   <script src="/js/admin.js"></script>
 </body>

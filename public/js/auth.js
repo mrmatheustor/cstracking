@@ -5,6 +5,13 @@ const registerForm = document.getElementById('register-form');
 const loginError = document.getElementById('login-error');
 const registerError = document.getElementById('register-error');
 
+const STEAM_ERRORS = {
+  steam_not_configured: 'Login Steam não configurado no servidor.',
+  steam_auth_failed: 'Login Steam cancelado ou inválido.',
+  steam_id_missing: 'Steam ID não encontrado.',
+  steam_auth_error: 'Erro ao entrar com Steam.',
+};
+
 if (api.getToken()) {
   api.apiRequest('/api/user/profile').then(({ user }) => {
     window.CSTrackingNav.redirectAfterLogin(user);
@@ -17,6 +24,12 @@ function showError(el, msg) {
   if (!el) return;
   el.textContent = msg;
   el.classList.remove('hidden');
+}
+
+const steamError = new URLSearchParams(window.location.search).get('error');
+if (steamError && loginError) {
+  showError(loginError, STEAM_ERRORS[steamError] || 'Falha no login Steam.');
+  window.history.replaceState({}, '', '/');
 }
 
 loginForm?.addEventListener('submit', async (e) => {

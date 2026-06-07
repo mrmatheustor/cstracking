@@ -77,7 +77,7 @@
     document.querySelectorAll('#theme-toggle').forEach(updateToggleUi);
   }
 
-  window.CSTrackingTheme = { toggle: toggleTheme, getTheme: currentTheme, apply };
+  window.CSTrackingTheme = { toggle: toggleTheme, getTheme: currentTheme, apply, createToggleButton };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mountToggle);

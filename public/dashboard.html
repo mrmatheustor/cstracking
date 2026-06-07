@@ -16,7 +16,7 @@
       }
       try {
         const { user } = await api.apiRequest('/api/user/profile');
-        window.location.replace(user.role === 'admin' ? '/admin' : '/conta');
+        window.location.replace(user.role === 'admin' ? '/admin' : `/profile?id=${user.id}`);
       } catch {
         window.location.replace('/profiles');
       }

@@ -2,8 +2,8 @@ const { buildGsiCfgContent } = require('./gsiConfig');
 
 const CFG_NAME = 'gamestate_integration_cstracking.cfg';
 
-function buildInstallerPs1(gsiToken, baseUrl) {
-  const cfgContent = buildGsiCfgContent(gsiToken, baseUrl);
+function buildInstallerPs1(gsiToken, baseUrl, authToken) {
+  const cfgContent = buildGsiCfgContent(gsiToken, baseUrl, authToken);
   const cfgEscaped = cfgContent.replace(/'/g, "''");
 
   const lines = [
@@ -88,8 +88,8 @@ function buildInstallerPs1(gsiToken, baseUrl) {
   return lines.join('\n');
 }
 
-function buildInstallerBat(gsiToken, baseUrl) {
-  const ps1 = buildInstallerPs1(gsiToken, baseUrl);
+function buildInstallerBat(gsiToken, baseUrl, authToken) {
+  const ps1 = buildInstallerPs1(gsiToken, baseUrl, authToken);
   const encoded = Buffer.from(ps1, 'utf16le').toString('base64');
 
   return [

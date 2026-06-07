@@ -2,6 +2,7 @@ const express = require('express');
 const { getDb } = require('../db');
 const { processGsiPayload, extractOwnerSteamId } = require('../services/gsiProcessor');
 const liveStore = require('../services/gsiLiveStore');
+const { verifyGsiAuthPayload } = require('../services/gsiAuth');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 const router = express.Router();
@@ -29,11 +30,19 @@ router.post(
     }
 
     const db = await getDb();
-    const user = await db.get(`SELECT id FROM users WHERE gsi_token = ?`, [gsiToken]);
+    const user = await db.get(
+      `SELECT id, gsi_auth_token FROM users WHERE gsi_token = ?`,
+      [gsiToken]
+    );
 
     if (!user) {
       console.log(`[GSI] Token inválido: ${gsiToken.slice(0, 8)}...`);
       return res.status(404).json({ error: 'Token GSI inválido' });
+    }
+
+    if (!verifyGsiAuthPayload(payload, user.gsi_auth_token)) {
+      console.log(`[GSI] Auth token inválido user_id=${user.id}`);
+      return res.status(403).json({ error: 'Token de autenticação GSI inválido' });
     }
 
     try {

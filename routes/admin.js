@@ -4,6 +4,7 @@ const { requireAdmin } = require('../middleware/admin');
 const { asyncHandler } = require('../middleware/errorHandler');
 const profileStats = require('../services/profileStats');
 const adminOverview = require('../services/adminOverview');
+const { getAdminRating } = require('../services/playerRating');
 
 const router = express.Router();
 
@@ -26,11 +27,15 @@ router.get(
   asyncHandler(async (req, res) => {
     const db = await getDb();
     const users = await db.all(
-      `SELECT id, username, email, role, gsi_token, created_at FROM users ORDER BY id ASC`
+      `SELECT id, username, email, role, created_at FROM users ORDER BY id ASC`
     );
     const profiles = await profileStats.listProfiles(db);
 
-    const statsById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+    const statsById = {};
+    for (const p of profiles) {
+      const adminRating = await getAdminRating(db, p.id);
+      statsById[p.id] = { ...p, mmr: adminRating.mmr };
+    }
 
     res.json({
       users: users.map((u) => ({

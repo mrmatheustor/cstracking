@@ -10,7 +10,6 @@ function switchTab(tab) {
   });
   document.getElementById('tab-monitor').classList.toggle('hidden', tab !== 'monitor');
   document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
-  document.getElementById('tab-gsi').classList.toggle('hidden', tab !== 'gsi');
 }
 
 document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -85,6 +84,7 @@ function renderUsers(users) {
         <td class="py-3 px-4">${u.username} ${isSelf ? '<span class="text-xs text-slate-500">(voce)</span>' : ''}</td>
         <td class="py-3 px-4 text-slate-400">${u.email}</td>
         <td class="py-3 px-4">${u.role === 'admin' ? '<span class="text-amber-400">Admin</span>' : 'Jogador'}</td>
+        <td class="py-3 px-4 text-amber-400/90 font-mono">${s.mmr ?? '—'}</td>
         <td class="py-3 px-4">${s.matches_played ?? 0}</td>
         <td class="py-3 px-4"><a href="/profile?id=${u.id}" class="text-orange-400 text-xs">Ver perfil</a></td>
         <td class="py-3 px-4">
@@ -133,12 +133,6 @@ async function init() {
   const user = await window.CSTrackingNav.initNav({ adminOnly: true });
   if (!user) return;
   currentUserId = user.id;
-
-  const profileRes = await api.apiRequest('/api/user/profile');
-  window.GsiSetup.render(document.getElementById('gsi-panel-root'), profileRes.user, {
-    showAdminNote: true,
-    showManual: true,
-  });
 
   await loadOverview();
   await loadUsers();

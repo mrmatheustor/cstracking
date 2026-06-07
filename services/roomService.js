@@ -1,5 +1,7 @@
+const bcrypt = require('bcryptjs');
 const liveStore = require('./gsiLiveStore');
 const { pickSelfStats } = require('./matchStats');
+const { getMemberRatingInternal, formatMemberForClient, balanceTeams } = require('./playerRating');
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const GSI_OK_MS = 120000;
@@ -18,7 +20,7 @@ async function generateUniqueCode(db) {
     const exists = await db.get(`SELECT id FROM match_rooms WHERE code = ?`, [code]);
     if (!exists) return code;
   }
-  throw new Error('Não foi possível gerar código da sala');
+  throw new Error('Não foi possível gerar código do lobby');
 }
 
 async function getUserActiveMembership(db, userId) {
@@ -37,10 +39,22 @@ async function getLiveRoomIdForUser(db, userId) {
   const row = await db.get(
     `SELECT r.id FROM match_room_members m
      JOIN match_rooms r ON r.id = m.room_id
-     WHERE m.user_id = ? AND r.status = 'live'`,
+     WHERE m.user_id = ? AND r.status IN ('open', 'live')`,
     [userId]
   );
   return row?.id || null;
+}
+
+/** Vincula sessões GSI ao vivo ao lobby quando o jogador entra ou o host ativa. */
+async function syncLiveSessionsForRoom(db, roomId) {
+  const rows = await db.all(`SELECT user_id FROM match_room_members WHERE room_id = ?`, [roomId]);
+  for (const row of rows) {
+    const live = liveStore.getLiveMatch(row.user_id);
+    if (live) {
+      live.room_id = roomId;
+      liveStore.setLiveMatch(row.user_id, live);
+    }
+  }
 }
 
 async function listRoomMembers(db, roomId) {
@@ -55,17 +69,22 @@ async function listRoomMembers(db, roomId) {
   );
 
   const now = Date.now();
-  return rows.map((row) => {
+  const members = [];
+  for (const row of rows) {
     const lastAt = liveStore.getLastGsiAt(row.id);
     const gsi_connected = !!(lastAt && now - lastAt < GSI_OK_MS);
-    return {
+    const { publicRank, mmr } = await getMemberRatingInternal(db, row.id);
+    members.push({
       id: row.id,
       username: row.username,
       is_host: row.id === row.host_user_id,
       gsi_connected,
       last_gsi_at: lastAt ? new Date(lastAt).toISOString() : null,
-    };
-  });
+      rating: publicRank,
+      _mmr: mmr,
+    });
+  }
+  return members;
 }
 
 async function getRoomByCode(db, code) {
@@ -74,15 +93,71 @@ async function getRoomByCode(db, code) {
   return db.get(`SELECT * FROM match_rooms WHERE code = ?`, [normalized]);
 }
 
+async function verifyRoomPassword(room, password) {
+  if (!room.join_password_hash) return;
+
+  const provided = (password || '').trim();
+  if (!provided) {
+    const err = new Error('Este lobby exige senha');
+    err.status = 403;
+    err.code = 'PASSWORD_REQUIRED';
+    throw err;
+  }
+
+  const ok = await bcrypt.compare(provided, room.join_password_hash);
+  if (!ok) {
+    const err = new Error('Senha incorreta');
+    err.status = 403;
+    err.code = 'WRONG_PASSWORD';
+    throw err;
+  }
+}
+
+async function listPublicRooms(db, viewerUserId) {
+  const rows = await db.all(
+    `SELECT
+      r.id,
+      r.code,
+      r.title,
+      r.status,
+      r.created_at,
+      r.host_user_id,
+      u.username AS host_username,
+      (SELECT COUNT(*) FROM match_room_members m WHERE m.room_id = r.id) AS members_count,
+      CASE WHEN r.join_password_hash IS NOT NULL AND r.join_password_hash != '' THEN 1 ELSE 0 END AS has_password
+     FROM match_rooms r
+     JOIN users u ON u.id = r.host_user_id
+     WHERE r.status IN ('open', 'live')
+     ORDER BY r.created_at DESC
+     LIMIT 50`
+  );
+
+  return rows.map((row) => ({
+    code: row.code,
+    title: row.title || 'Lobby de partida',
+    status: row.status,
+    host_username: row.host_username,
+    members_count: row.members_count || 0,
+    has_password: !!row.has_password,
+    is_mine: row.host_user_id === viewerUserId,
+    created_at: row.created_at,
+  }));
+}
+
 async function createRoom(db, hostUserId, options = {}) {
   const title = typeof options === 'string' ? options : options.title || '';
   const autoStart = typeof options === 'object' && options.auto_start !== false;
-  const mapName = (options.map_name || '').trim() || null;
-  const lobbyPassword = (options.lobby_password || '').trim() || null;
+  const rawPassword = typeof options === 'object' ? (options.password || '').trim() : '';
+  if (rawPassword && rawPassword.length < 4) {
+    const err = new Error('Senha do lobby deve ter no mínimo 4 caracteres');
+    err.status = 400;
+    throw err;
+  }
+  const joinPasswordHash = rawPassword ? await bcrypt.hash(rawPassword, 10) : null;
 
   const existing = await getUserActiveMembership(db, hostUserId);
   if (existing) {
-    const err = new Error('Você já está em uma sala ativa');
+    const err = new Error('Você já está em um lobby ativo');
     err.code = 'ALREADY_IN_ROOM';
     err.room = existing;
     throw err;
@@ -92,9 +167,9 @@ async function createRoom(db, hostUserId, options = {}) {
   const status = autoStart ? 'live' : 'open';
 
   const insert = await db.run(
-    `INSERT INTO match_rooms (code, host_user_id, title, status, map_name, lobby_password, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, ${autoStart ? "datetime('now')" : 'NULL'})`,
-    [roomCode, hostUserId, (title || '').trim() || null, status, mapName, lobbyPassword]
+    `INSERT INTO match_rooms (code, host_user_id, title, status, join_password_hash, started_at)
+     VALUES (?, ?, ?, ?, ?, ${autoStart ? "datetime('now')" : 'NULL'})`,
+    [roomCode, hostUserId, (title || '').trim() || null, status, joinPasswordHash]
   );
 
   await db.run(
@@ -102,10 +177,12 @@ async function createRoom(db, hostUserId, options = {}) {
     [insert.lastID, hostUserId]
   );
 
+  await syncLiveSessionsForRoom(db, insert.lastID);
+
   return getRoomPayload(db, roomCode, hostUserId);
 }
 
-async function joinRoom(db, userId, code) {
+async function joinRoom(db, userId, code, password) {
   const room = await getRoomByCode(db, code);
   if (!room) {
     const err = new Error('Código inválido');
@@ -113,16 +190,24 @@ async function joinRoom(db, userId, code) {
     throw err;
   }
   if (room.status === 'closed') {
-    const err = new Error('Esta sala já foi encerrada');
+    const err = new Error('Este lobby já foi encerrado');
     err.status = 400;
     throw err;
   }
 
   const other = await getUserActiveMembership(db, userId);
   if (other && other.id !== room.id) {
-    const err = new Error('Saia da sala atual antes de entrar em outra');
+    const err = new Error('Saia do lobby atual antes de entrar em outro');
     err.code = 'ALREADY_IN_ROOM';
     throw err;
+  }
+
+  const alreadyMember = await db.get(
+    `SELECT 1 FROM match_room_members WHERE room_id = ? AND user_id = ?`,
+    [room.id, userId]
+  );
+  if (!alreadyMember) {
+    await verifyRoomPassword(room, password);
   }
 
   await db.run(
@@ -130,19 +215,21 @@ async function joinRoom(db, userId, code) {
     [room.id, userId]
   );
 
+  await syncLiveSessionsForRoom(db, room.id);
+
   return getRoomPayload(db, room.code, userId);
 }
 
 async function leaveRoom(db, userId, code) {
   const room = await getRoomByCode(db, code);
   if (!room) {
-    const err = new Error('Sala não encontrada');
+    const err = new Error('Lobby não encontrado');
     err.status = 404;
     throw err;
   }
 
   if (room.host_user_id === userId && room.status !== 'closed') {
-    const err = new Error('O host deve encerrar a sala em vez de sair');
+    const err = new Error('O host deve encerrar o lobby em vez de sair');
     err.status = 400;
     throw err;
   }
@@ -158,7 +245,7 @@ async function leaveRoom(db, userId, code) {
 async function startRoom(db, hostUserId, code) {
   const room = await getRoomByCode(db, code);
   if (!room) {
-    const err = new Error('Sala não encontrada');
+    const err = new Error('Lobby não encontrado');
     err.status = 404;
     throw err;
   }
@@ -168,7 +255,7 @@ async function startRoom(db, hostUserId, code) {
     throw err;
   }
   if (room.status === 'closed') {
-    const err = new Error('Sala já encerrada');
+    const err = new Error('Lobby já encerrado');
     err.status = 400;
     throw err;
   }
@@ -178,18 +265,20 @@ async function startRoom(db, hostUserId, code) {
     [room.id]
   );
 
+  await syncLiveSessionsForRoom(db, room.id);
+
   return getRoomPayload(db, room.code, hostUserId);
 }
 
 async function closeRoom(db, hostUserId, code) {
   const room = await getRoomByCode(db, code);
   if (!room) {
-    const err = new Error('Sala não encontrada');
+    const err = new Error('Lobby não encontrado');
     err.status = 404;
     throw err;
   }
   if (room.host_user_id !== hostUserId) {
-    const err = new Error('Apenas o host pode encerrar a sala');
+    const err = new Error('Apenas o host pode encerrar o lobby');
     err.status = 403;
     throw err;
   }
@@ -229,17 +318,59 @@ function mergePlayerRows(allStats) {
   );
 }
 
+async function buildRoomTracking(db, roomId, membersRaw) {
+  const room = await db.get(`SELECT * FROM match_rooms WHERE id = ?`, [roomId]);
+  if (!room) return null;
+
+  const sessionSince = room.started_at || room.created_at;
+  const matchCounts = await db.all(
+    `SELECT user_id, COUNT(*) AS n FROM matches
+     WHERE room_id = ? AND finished = 1 AND updated_at >= ?
+     GROUP BY user_id`,
+    [roomId, sessionSince]
+  );
+  const countByUser = new Map(matchCounts.map((r) => [r.user_id, r.n]));
+  const now = Date.now();
+
+  const members = membersRaw.map((m) => {
+    const live = liveStore.getLiveMatch(m.id);
+    const lastInGame = liveStore.getLastInGameAt(m.id);
+    const inGame = !!(lastInGame && now - lastInGame < GSI_OK_MS);
+    const liveInRoom = live?.room_id === roomId;
+
+    return {
+      id: m.id,
+      username: m.username,
+      gsi_connected: m.gsi_connected,
+      in_game: inGame,
+      matches_reported: countByUser.get(m.id) || 0,
+      live_map: liveInRoom && inGame ? live.map_name : null,
+    };
+  });
+
+  return {
+    session_since: sessionSince,
+    members,
+    gsi_ready_count: members.filter((m) => m.gsi_connected).length,
+    reported_count: members.filter((m) => m.matches_reported > 0).length,
+    in_game_count: members.filter((m) => m.in_game).length,
+    members_count: members.length,
+  };
+}
+
 async function buildRoomResult(db, roomId) {
   const room = await db.get(`SELECT * FROM match_rooms WHERE id = ?`, [roomId]);
   if (!room) return null;
 
+  const sessionSince = room.started_at || room.created_at;
+
   const matches = await db.all(
-    `SELECT m.*, u.username AS tracker_username
+    `SELECT m.*, u.username AS tracker_username, u.steam_id AS tracker_steam_id
      FROM matches m
      JOIN users u ON u.id = m.user_id
-     WHERE m.room_id = ? AND m.finished = 1
+     WHERE m.room_id = ? AND m.finished = 1 AND m.updated_at >= ?
      ORDER BY m.updated_at DESC`,
-    [roomId]
+    [roomId, sessionSince]
   );
 
   const allStats = [];
@@ -254,7 +385,7 @@ async function buildRoomResult(db, roomId) {
        FROM player_stats WHERE match_id = ?`,
       [match.id]
     );
-    const self = pickSelfStats(match, stats);
+    const self = pickSelfStats(match, stats, { userSteamId: match.tracker_steam_id });
     if (self) {
       allStats.push({
         ...self,
@@ -267,6 +398,48 @@ async function buildRoomResult(db, roomId) {
     if ((match.score_ct || 0) + (match.score_t || 0) >= scoreCt + scoreT) {
       scoreCt = match.score_ct || 0;
       scoreT = match.score_t || 0;
+    }
+  }
+
+  const memberRows = await db.all(
+    `SELECT u.id, u.username, u.steam_id
+     FROM match_room_members m
+     JOIN users u ON u.id = m.user_id
+     WHERE m.room_id = ?`,
+    [roomId]
+  );
+
+  for (const member of memberRows) {
+    const live = liveStore.getLiveMatch(member.id);
+    if (!live || live.room_id !== roomId) continue;
+
+    const stats = live.player_stats || [];
+    if (!stats.length) continue;
+
+    const pseudoMatch = {
+      owner_steamid: live.owner_steamid,
+      user_steam_id: member.steam_id,
+    };
+    const self = pickSelfStats(pseudoMatch, stats, { userSteamId: member.steam_id });
+    if (!self) continue;
+
+    const already = allStats.some(
+      (row) => row.tracker_user_id === member.id && row.in_progress
+    );
+    if (!already) {
+      allStats.push({
+        ...self,
+        tracker_username: member.username,
+        tracker_user_id: member.id,
+        in_progress: true,
+      });
+    }
+
+    if (!mapName && live.map_name) mapName = live.map_name;
+    if (!gameMode && live.game_mode) gameMode = live.game_mode;
+    if ((live.score_ct || 0) + (live.score_t || 0) > scoreCt + scoreT) {
+      scoreCt = live.score_ct || 0;
+      scoreT = live.score_t || 0;
     }
   }
 
@@ -286,8 +459,9 @@ async function buildRoomResult(db, roomId) {
     score_ct: scoreCt,
     score_t: scoreT,
     matches_count: matches.length,
-    members_reported: matches.length,
+    members_reported: new Set(matches.map((m) => m.user_id)).size,
     scoreboard,
+    has_live_stats: allStats.some((row) => row.in_progress),
   };
 }
 
@@ -295,7 +469,13 @@ async function getRoomPayload(db, code, viewerUserId) {
   const room = await getRoomByCode(db, code);
   if (!room) return null;
 
-  const members = await listRoomMembers(db, room.id);
+  const membersRaw = await listRoomMembers(db, room.id);
+  const viewer = viewerUserId
+    ? await db.get(`SELECT role FROM users WHERE id = ?`, [viewerUserId])
+    : null;
+  const isAdmin = viewer?.role === 'admin';
+
+  const members = membersRaw.map((m) => formatMemberForClient(m, isAdmin));
   const isMember = members.some((m) => m.id === viewerUserId);
   const result =
     room.status === 'closed' || room.status === 'live'
@@ -303,6 +483,12 @@ async function getRoomPayload(db, code, viewerUserId) {
       : null;
 
   const gsiReady = members.filter((m) => m.gsi_connected).length;
+  const team_balance =
+    room.status !== 'closed' && membersRaw.length >= 2
+      ? balanceTeams(membersRaw)
+      : null;
+  const tracking =
+    room.status !== 'closed' ? await buildRoomTracking(db, room.id, membersRaw) : null;
 
   return {
     room: {
@@ -311,8 +497,7 @@ async function getRoomPayload(db, code, viewerUserId) {
       title: room.title,
       status: room.status,
       host_user_id: room.host_user_id,
-      map_name: room.map_name,
-      lobby_password: room.lobby_password,
+      has_password: !!room.join_password_hash,
       created_at: room.created_at,
       started_at: room.started_at,
       closed_at: room.closed_at,
@@ -320,9 +505,11 @@ async function getRoomPayload(db, code, viewerUserId) {
     is_host: room.host_user_id === viewerUserId,
     is_member: isMember,
     members,
+    team_balance,
     gsi_ready_count: gsiReady,
     members_count: members.length,
-    share_url: `/sala?code=${room.code}`,
+    tracking,
+    share_url: `/lobby?code=${room.code}`,
     result,
   };
 }
@@ -338,4 +525,5 @@ module.exports = {
   getUserActiveMembership,
   getLiveRoomIdForUser,
   buildRoomResult,
+  listPublicRooms,
 };

@@ -24,10 +24,10 @@
       <section class="hero-landing">
         <p class="page-eyebrow">Game State Integration</p>
         <h1>Suas partidas de <span class="brand-accent">CS2</span>, registradas automaticamente</h1>
-        <p class="lead">Cadastre-se, instale o GSI, jogue e acompanhe estatísticas no ranking público — sozinho ou em sala com amigos.</p>
+        <p class="lead">Cadastre-se, instale o GSI, jogue e acompanhe estatísticas no ranking público — sozinho ou em lobby com amigos.</p>
         <div class="hero-features">
           <span>Ranking público</span>
-          <span>Salas com código</span>
+          <span>Lobbys com código</span>
           <span>Dashboard pessoal</span>
         </div>
       </section>
@@ -47,6 +47,12 @@
             <p id="login-error" class="text-red-400 text-sm hidden"></p>
             <button type="submit" class="btn-primary w-full">Entrar</button>
           </form>
+          <div class="auth-divider"><span>ou</span></div>
+          <a href="/api/auth/steam" class="btn-steam w-full no-underline">
+            <span class="btn-steam-icon" aria-hidden="true"></span>
+            Entrar com Steam
+          </a>
+          <p class="text-xs text-slate-500 mt-3 text-center">Usa OpenID da Steam — não pedimos sua senha Steam.</p>
         </section>
 
         <section class="card auth-card">
@@ -71,7 +77,11 @@
       </div>
     </main>
 
-    <footer class="site-footer">CS2 Tracking — estatísticas via GSI</footer>
+    <footer class="site-footer">
+      CS2 Tracking — estatísticas via GSI ·
+      <a href="/seguranca" class="text-orange-400/80 hover:underline">Segurança</a> ·
+      <a href="/privacidade" class="text-orange-400/80 hover:underline">Privacidade</a>
+    </footer>
   </div>
 
   <script src="/js/api.js"></script>

@@ -8,7 +8,10 @@ const { pickSelfStats } = require('./matchStats');
 const OWNER_STATS_JOIN = `
   LEFT JOIN player_stats ps ON ps.match_id = m.id
     AND (
-      (m.owner_steamid IS NOT NULL AND m.owner_steamid != '' AND ps.player_steamid = m.owner_steamid)
+      (
+        m.owner_steamid IS NOT NULL AND m.owner_steamid != ''
+        AND ps.player_steamid = m.owner_steamid
+      )
       OR (
         (m.owner_steamid IS NULL OR m.owner_steamid = '')
         AND u.steam_id IS NOT NULL AND u.steam_id != ''
@@ -16,19 +19,9 @@ const OWNER_STATS_JOIN = `
       )
       OR (
         (m.owner_steamid IS NULL OR m.owner_steamid = '')
+        AND (u.steam_id IS NULL OR u.steam_id = '')
         AND (SELECT COUNT(*) FROM player_stats c WHERE c.match_id = m.id) = 1
         AND ps.id = (SELECT ps2.id FROM player_stats ps2 WHERE ps2.match_id = m.id LIMIT 1)
-      )
-      OR (
-        (m.owner_steamid IS NULL OR m.owner_steamid = '')
-        AND (SELECT COUNT(*) FROM player_stats c WHERE c.match_id = m.id) > 1
-        AND (u.steam_id IS NULL OR u.steam_id = '')
-        AND ps.id = (
-          SELECT ps2.id FROM player_stats ps2
-          WHERE ps2.match_id = m.id
-          ORDER BY ps2.kills DESC, ps2.score DESC
-          LIMIT 1
-        )
       )
     )
 `;
@@ -37,6 +30,8 @@ const PROFILE_LIST_SQL = `
   SELECT
     u.id,
     u.username,
+    u.avatar_url,
+    u.steam_id,
     u.role,
     u.created_at,
     COUNT(DISTINCT m.id) AS matches_played,
@@ -55,6 +50,8 @@ const PROFILE_DETAIL_SQL = `
   SELECT
     u.id,
     u.username,
+    u.avatar_url,
+    u.steam_id,
     u.role,
     u.created_at,
     COUNT(DISTINCT m.id) AS matches_played,
@@ -77,6 +74,8 @@ function enrichProfile(row) {
   return {
     id: row.id,
     username: row.username,
+    avatar_url: row.avatar_url || null,
+    steam_id: row.steam_id || null,
     role: row.role || 'user',
     created_at: row.created_at,
     matches_played: row.matches_played || 0,
@@ -99,6 +98,8 @@ async function getProfileById(db, userId) {
 }
 
 async function getMatchesForProfile(db, userId, limit = 30) {
+  const user = await db.get(`SELECT steam_id FROM users WHERE id = ?`, [userId]);
+
   const matches = await db.all(
     `SELECT id, map_name, game_mode, score_ct, score_t, owner_steamid, updated_at, created_at
      FROM matches WHERE user_id = ? AND finished = 1
@@ -114,13 +115,15 @@ async function getMatchesForProfile(db, userId, limit = 30) {
        ORDER BY score DESC, kills DESC`,
       [match.id]
     );
-    const self_stat = pickSelfStats(match, stats);
+    const self_stat = pickSelfStats(match, stats, { userSteamId: user?.steam_id });
     result.push({ ...match, player_stats: stats, self_stat });
   }
   return result;
 }
 
 async function getMatchDetail(db, userId, matchId) {
+  const user = await db.get(`SELECT steam_id FROM users WHERE id = ?`, [userId]);
+
   const match = await db.get(
     `SELECT m.*, u.username AS owner_username
      FROM matches m
@@ -138,7 +141,7 @@ async function getMatchDetail(db, userId, matchId) {
     [matchId]
   );
 
-  const self_stat = pickSelfStats(match, player_stats);
+  const self_stat = pickSelfStats(match, player_stats, { userSteamId: user?.steam_id });
 
   return {
     match: {
@@ -151,6 +154,7 @@ async function getMatchDetail(db, userId, matchId) {
       score_ct: match.score_ct,
       score_t: match.score_t,
       owner_steamid: match.owner_steamid,
+      user_steam_id: user?.steam_id || null,
       created_at: match.created_at,
       updated_at: match.updated_at,
     },
@@ -161,6 +165,7 @@ async function getMatchDetail(db, userId, matchId) {
 }
 
 module.exports = {
+  OWNER_STATS_JOIN,
   listProfiles,
   getProfileById,
   getMatchesForProfile,

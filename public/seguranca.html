@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Segurança e GSI — CS2 Tracking</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div class="app-shell min-h-screen flex flex-col">
+    <header class="glass-nav">
+      <div class="nav-inner">
+        <a href="/" class="brand">
+          <span class="brand-mark">CS</span>
+          <span>Tracking</span>
+        </a>
+        <div class="nav-links">
+          <a href="/profiles" class="nav-link">Perfis</a>
+          <a href="/privacidade" class="nav-link">Privacidade</a>
+          <a href="/" class="nav-link">Entrar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 max-w-3xl mx-auto px-4 py-10 pb-16">
+      <header class="page-header mb-10">
+        <p class="page-eyebrow">Transparência</p>
+        <h1 class="page-title">Como funciona e por que é seguro</h1>
+        <p class="page-desc">O CS2 Tracking usa o <strong>Game State Integration (GSI)</strong>, recurso oficial da Valve — o mesmo tipo de integração usado por ferramentas de transmissão e estatísticas.</p>
+      </header>
+
+      <section class="card p-6 mb-6 space-y-4">
+        <h2 class="font-semibold text-lg">O que o arquivo .cfg faz</h2>
+        <p class="text-sm text-slate-400">É um arquivo de texto que você coloca na pasta do CS2. Ele diz ao jogo para enviar <em>apenas</em> dados de partida (mapa, placar, suas kills/deaths) para o nosso servidor.</p>
+        <ul class="text-sm text-slate-400 space-y-2 list-disc list-inside">
+          <li><strong class="text-slate-300 font-normal">Não</strong> lê arquivos do seu PC</li>
+          <li><strong class="text-slate-300 font-normal">Não</strong> acessa sua conta Steam ou inventário</li>
+          <li><strong class="text-slate-300 font-normal">Não</strong> modifica o jogo (não é cheat)</li>
+          <li><strong class="text-slate-300 font-normal">Não</strong> roda em segundo plano — só funciona com o CS2 aberto</li>
+        </ul>
+        <p class="text-xs text-slate-500">Guia oficial: <a href="https://help.steampowered.com/pt-br/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:underline">Steam — Game State Integration</a></p>
+      </section>
+
+      <section class="card p-6 mb-6 space-y-4">
+        <h2 class="font-semibold text-lg">Você pode conferir antes de instalar</h2>
+        <p class="text-sm text-slate-400">Logado na sua conta, baixe o <code class="text-slate-300">gamestate_integration_cstracking.cfg</code> e abra no Bloco de Notas. Você verá só uma URL do nosso site e campos de estatísticas — nada escondido.</p>
+        <p class="text-sm text-slate-400">O arquivo inclui um <strong class="text-slate-300 font-normal">token de autenticação</strong>. Só o seu CS2, com o seu .cfg, consegue enviar dados na sua conta. Se alguém descobrir a URL sem o token, a partida é rejeitada.</p>
+      </section>
+
+      <section class="card p-6 mb-6 space-y-3">
+        <h2 class="font-semibold text-lg">Instalação recomendada</h2>
+        <ol class="text-sm text-slate-400 space-y-2 list-decimal list-inside">
+          <li>Baixe o <code class="text-slate-300">.cfg</code> na sua conta (menu GSI ou Configurações)</li>
+          <li>Steam → CS2 → Propriedades → Arquivos instalados → Procurar</li>
+          <li>Cole em <code class="text-slate-300">game/csgo/cfg</code></li>
+          <li>Reinicie o CS2</li>
+        </ol>
+        <p class="text-xs text-slate-500">O instalador <code class="text-slate-300">.bat</code> é opcional — faz o mesmo passo 3 automaticamente. Se preferir, ignore o .bat.</p>
+        <p class="text-xs text-slate-500">Sobre dados da conta e privacidade, veja a <a href="/privacidade" class="text-orange-400 hover:underline">política de privacidade</a>.</p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      CS2 Tracking · <a href="/privacidade" class="text-orange-400/80 hover:underline">Privacidade</a>
+    </footer>
+  </div>
+</body>
+</html>

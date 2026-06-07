@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacidade — CS2 Tracking</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div class="app-shell min-h-screen flex flex-col">
+    <header class="glass-nav">
+      <div class="nav-inner">
+        <a href="/" class="brand">
+          <span class="brand-mark">CS</span>
+          <span>Tracking</span>
+        </a>
+        <div class="nav-links">
+          <a href="/seguranca" class="nav-link">Segurança</a>
+          <a href="/profiles" class="nav-link">Perfis</a>
+          <a href="/" class="nav-link">Entrar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 max-w-3xl mx-auto px-4 py-10 pb-16 prose prose-invert max-w-none">
+      <header class="page-header mb-10">
+        <p class="page-eyebrow">LGPD</p>
+        <h1 class="page-title">Política de privacidade</h1>
+        <p class="page-desc text-slate-400">Última atualização: junho de 2026. Texto simplificado para deixar claro o que fazemos com seus dados.</p>
+      </header>
+
+      <section class="card p-6 mb-6 space-y-3 text-sm text-slate-400">
+        <h2 class="font-semibold text-slate-200 text-base">1. Quem somos</h2>
+        <p>O CS2 Tracking é um serviço de estatísticas de partidas de Counter-Strike 2 para jogadores e grupos de amigos. O responsável pelo tratamento dos dados é o operador do site que você utiliza (instância self-hosted ou hospedada).</p>
+      </section>
+
+      <section class="card p-6 mb-6 space-y-3 text-sm text-slate-400">
+        <h2 class="font-semibold text-slate-200 text-base">2. Dados que coletamos</h2>
+        <ul class="space-y-2 list-disc list-inside">
+          <li><strong class="text-slate-300 font-normal">Cadastro:</strong> nome de usuário, e-mail, senha (armazenada com hash bcrypt).</li>
+          <li><strong class="text-slate-300 font-normal">Partidas (GSI):</strong> mapa, modo, placar, estatísticas dos jogadores presentes no payload, Steam ID quando disponível.</li>
+          <li><strong class="text-slate-300 font-normal">Perfil:</strong> foto opcional, ranking (PR), histórico de partidas.</li>
+          <li><strong class="text-slate-300 font-normal">Técnicos:</strong> tokens GSI para vincular dados ao seu usuário; logs de servidor para diagnóstico.</li>
+        </ul>
+      </section>
+
+      <section class="card p-6 mb-6 space-y-3 text-sm text-slate-400">
+        <h2 class="font-semibold text-slate-200 text-base">3. Finalidade</h2>
+        <p>Usamos os dados para exibir estatísticas, ranking, lobbys e histórico de partidas. Não vendemos e-mail nem dados pessoais a terceiros.</p>
+      </section>
+
+      <section class="card p-6 mb-6 space-y-3 text-sm text-slate-400">
+        <h2 class="font-semibold text-slate-200 text-base">4. O que é público</h2>
+        <p>Seu <strong class="text-slate-300 font-normal">perfil público</strong> mostra usuário, avatar, ranking, stats agregadas e histórico de partidas. <strong class="text-slate-300 font-normal">E-mail, senha e tokens não aparecem</strong> no perfil.</p>
+      </section>
+
+      <section class="card p-6 mb-6 space-y-3 text-sm text-slate-400">
+        <h2 class="font-semibold text-slate-200 text-base">5. Seus direitos</h2>
+        <p>Você pode alterar e-mail e senha em Configurações, regenerar credenciais GSI, e solicitar exclusão da conta ao administrador do serviço. Após exclusão, dados pessoais e partidas associadas são removidos do banco.</p>
+      </section>
+
+      <section class="card p-6 mb-6 space-y-3 text-sm text-slate-400">
+        <h2 class="font-semibold text-slate-200 text-base">6. Retenção</h2>
+        <p>Mantemos os dados enquanto sua conta existir. Partidas ficam no histórico até você ou o admin remover a conta.</p>
+      </section>
+
+      <section class="card p-6 mb-6 space-y-3 text-sm text-slate-400">
+        <h2 class="font-semibold text-slate-200 text-base">7. Segurança</h2>
+        <p>Senhas são hasheadas. Recomendamos HTTPS em produção. O GSI usa token de autenticação para evitar envio de dados falsos na sua conta. Veja também <a href="/seguranca" class="text-orange-400 hover:underline">Como funciona o GSI</a>.</p>
+      </section>
+
+      <section class="card p-6 space-y-3 text-sm text-slate-400">
+        <h2 class="font-semibold text-slate-200 text-base">8. Contato</h2>
+        <p>Para dúvidas ou pedidos sobre seus dados, entre em contato com o administrador da instância que você utiliza.</p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      CS2 Tracking · <a href="/seguranca" class="text-orange-400/80 hover:underline">Segurança</a>
+    </footer>
+  </div>
+</body>
+</html>

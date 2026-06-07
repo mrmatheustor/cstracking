@@ -17,13 +17,14 @@
           <span>Tracking</span>
         </a>
         <div id="nav-guest" class="nav-links">
-          <a data-nav="/profiles" href="/profiles" class="nav-link">← Perfis</a>
+          <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
           <a href="/" class="btn-primary text-sm py-2 px-4 no-underline">Entrar</a>
         </div>
         <div id="nav-authed" class="nav-links hidden">
           <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
-          <a id="nav-sala-link" data-nav="/sala" href="/sala" class="nav-link">Sala</a>
-          <a id="nav-conta-link" data-nav="/conta" href="/conta" class="nav-link">Minha conta</a>
+          <a id="nav-lobby-link" data-nav="/lobby" href="/lobby" class="nav-link">Lobby</a>
+          <a id="nav-profile-link" data-nav="/profile" href="#" class="nav-link">Perfil</a>
+          <a id="nav-settings-link" data-nav="/configuracoes" href="/configuracoes" class="nav-link">Configurações</a>
           <a id="nav-admin-link" data-nav="/admin" href="/admin" class="nav-link hidden" style="color: #fcd34d;">Admin</a>
           <span class="nav-sep hidden sm:inline">|</span>
           <span id="nav-username" class="nav-link" style="cursor: default;"></span>
@@ -34,40 +35,145 @@
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 py-8 pb-16">
-      <a href="/profiles" class="back-link">← Voltar ao ranking</a>
-
-      <p id="own-account-banner" class="hidden mb-6 card px-4 py-3 border-orange-500/30 text-sm text-slate-300"></p>
+      <div id="gsi-onboarding-wrap" class="hidden mb-8"></div>
 
       <section class="hero-account mb-8">
         <div class="flex flex-wrap items-center gap-5">
           <div id="profile-avatar" class="avatar text-2xl">?</div>
-          <div>
+          <div class="flex-1 min-w-0">
             <h1 id="profile-name" class="text-3xl font-bold">...</h1>
-            <p class="text-slate-500 text-sm mt-1">Membro desde <span id="profile-since">—</span></p>
+            <div id="profile-steam-meta" class="profile-steam-meta hidden"></div>
+            <p class="text-orange-400 font-semibold mt-1"><span id="profile-rank-name">—</span> · <span id="profile-rank-points">0 PR</span></p>
+            <div class="mt-3 max-w-md">
+              <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div id="profile-rank-progress-bar" class="h-full bg-orange-500 transition-all" style="width: 0%"></div>
+              </div>
+              <p id="profile-rank-progress-label" class="text-xs text-slate-500 mt-1">—</p>
+            </div>
+            <p id="profile-leaderboard-wrap" class="hidden text-sm text-slate-500 mt-2">
+              Posição no ranking: <span id="profile-leaderboard" class="text-orange-400 font-medium">—</span>
+            </p>
+            <p class="text-slate-500 text-sm mt-2">Membro desde <span id="profile-since">—</span></p>
           </div>
         </div>
       </section>
 
-      <section class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <div class="stat-card"><p class="stat-label">Partidas</p><p id="stat-matches" class="stat-value text-orange-400 mt-2">0</p></div>
+      <section id="profile-active-room" class="hidden card p-5 mb-6 border-green-500/30">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p class="text-xs text-green-400 font-medium uppercase tracking-wider">Lobby ativo</p>
+            <p id="active-room-title" class="font-semibold mt-1">...</p>
+            <p class="text-sm mt-1">Código <span id="active-room-code" class="font-mono text-orange-400 tracking-widest"></span> · <span id="active-room-status"></span></p>
+          </div>
+          <a id="active-room-link" href="/lobby" class="btn-primary text-sm no-underline shrink-0">Abrir lobby</a>
+        </div>
+      </section>
+
+      <section id="profile-admin-mmr" class="card p-4 mb-6 hidden border-amber-500/30">
+        <p class="text-xs text-amber-400 uppercase tracking-wider mb-1">Admin · MMR oculto</p>
+        <p class="text-2xl font-bold"><span id="profile-mmr-value">—</span> MMR</p>
+      </section>
+
+      <section class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+        <div class="stat-card">
+          <p class="stat-label">Partidas <span id="filter-badge" class="hidden text-orange-400/80">(filtro)</span></p>
+          <p id="stat-matches" class="stat-value text-orange-400 mt-2">0</p>
+        </div>
+        <div class="stat-card"><p class="stat-label">Ranked WR</p><p id="profile-ranked-wr" class="stat-value text-sm mt-3">—</p></div>
         <div class="stat-card"><p class="stat-label">K/D/A</p><p id="stat-kda" class="stat-value text-sm mt-3">0/0/0</p></div>
         <div class="stat-card"><p class="stat-label">K/D</p><p id="stat-kd" class="stat-value mt-2">0</p></div>
         <div class="stat-card"><p class="stat-label">MVPs</p><p id="stat-mvps" class="stat-value mt-2">0</p></div>
       </section>
 
-      <section class="card overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-800/80">
-          <h2 class="font-semibold">Historico de partidas</h2>
+      <section id="profile-filters" class="hidden card p-4 mb-8">
+        <p class="stat-label mb-3">Filtrar histórico</p>
+        <form id="filter-form" class="filter-bar">
+          <div>
+            <label class="text-xs text-slate-600 block mb-1" for="filter-days">Período</label>
+            <select id="filter-days" class="input-field text-sm py-2">
+              <option value="">Tudo</option>
+              <option value="7">7 dias</option>
+              <option value="30">30 dias</option>
+              <option value="90">90 dias</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-600 block mb-1" for="filter-map">Mapa</label>
+            <select id="filter-map" class="input-field text-sm py-2">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-600 block mb-1" for="filter-mode">Modo</label>
+            <select id="filter-mode" class="input-field text-sm py-2">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <button type="button" id="filter-reset" class="btn-ghost text-sm">Limpar</button>
+        </form>
+      </section>
+
+      <section id="profile-charts" class="hidden grid md:grid-cols-2 gap-6 mb-8">
+        <div class="card p-5">
+          <h3 class="font-semibold text-sm mb-1">K/D por partida</h3>
+          <p class="text-xs text-slate-500 mb-4">Últimas partidas do filtro</p>
+          <div id="chart-kd"></div>
         </div>
-        <div id="profile-matches"></div>
-        <div id="profile-matches-empty" class="empty-state">
-          <p class="text-slate-400">Sem partidas registradas</p>
+        <div class="card p-5">
+          <h3 class="font-semibold text-sm mb-1">Partidas por semana</h3>
+          <p class="text-xs text-slate-500 mb-4">Volume no período</p>
+          <div id="chart-weeks"></div>
         </div>
       </section>
+
+      <div id="profile-content-grid" class="grid gap-6">
+        <section id="profile-matches-section" class="card overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between gap-3">
+            <h2 class="font-semibold">Historico de partidas</h2>
+            <span id="kda-summary" class="hidden text-xs text-slate-500 shrink-0">K/D/A —</span>
+          </div>
+          <div id="profile-matches"></div>
+          <div id="profile-matches-empty" class="empty-state">
+            <p class="text-slate-400">Sem partidas registradas</p>
+          </div>
+        </section>
+
+        <aside id="profile-aside" class="hidden space-y-4">
+          <div id="lobby-idle-card" class="card p-5 border-orange-500/20">
+            <h3 class="font-semibold text-sm mb-2">Lobby de partida</h3>
+            <p class="text-xs text-slate-500 mb-4">Crie um código para scrims em grupo.</p>
+            <a href="/lobby" class="btn-primary block text-center text-sm no-underline">Criar ou entrar</a>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-semibold text-sm mb-3">Resumo</h3>
+            <dl class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <dt class="text-slate-500">Mortes</dt>
+                <dd id="stat-deaths-aside" class="font-medium">0</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-slate-500">Assistências</dt>
+                <dd id="stat-assists-aside" class="font-medium">0</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-slate-500">Patente</dt>
+                <dd id="stat-rank-aside" class="font-medium text-orange-400">—</dd>
+              </div>
+            </dl>
+          </div>
+        </aside>
+      </div>
     </main>
   </div>
 
   <script src="/js/api.js"></script>
+  <script src="/js/avatars.js"></script>
+  <script src="/js/charts.js"></script>
+  <script src="/js/gsi-setup.js"></script>
+  <script src="/js/shell.js"></script>
+  <script src="/js/steam-ui.js"></script>
+  <script src="/js/steam-id.js"></script>
   <script src="/js/match-ui.js"></script>
   <script src="/js/nav.js"></script>
   <script src="/js/profile.js"></script>

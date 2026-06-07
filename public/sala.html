@@ -1,153 +1,398 @@
 <!DOCTYPE html>
+
 <html lang="pt-BR">
+
 <head>
+
   <meta charset="UTF-8" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sala — CS2 Tracking</title>
+
+  <title>Lobbys — CS2 Tracking</title>
+
   <link rel="stylesheet" href="/css/app.css" />
+
   <script src="/js/theme.js"></script>
+
   <script src="https://cdn.tailwindcss.com"></script>
+
 </head>
+
 <body>
+
   <div class="app-shell min-h-screen">
+
     <nav class="glass-nav sticky top-0 z-20">
+
       <div class="nav-inner">
+
         <a href="/profiles" class="brand">
+
           <span class="brand-mark">CS</span>
+
           <span>Tracking</span>
+
         </a>
+
         <div id="nav-authed" class="nav-links">
+
           <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
-          <a id="nav-sala-link" data-nav="/sala" href="/sala" class="nav-link">Sala</a>
-          <a id="nav-conta-link" data-nav="/conta" href="/conta" class="nav-link">Minha conta</a>
+
+          <a id="nav-lobby-link" data-nav="/lobby" href="/lobby" class="nav-link">Lobby</a>
+
+          <a id="nav-profile-link" data-nav="/profile" href="#" class="nav-link">Perfil</a>
+          <a id="nav-settings-link" data-nav="/configuracoes" href="/configuracoes" class="nav-link">Configurações</a>
+
           <a id="nav-admin-link" data-nav="/admin" href="/admin" class="nav-link hidden" style="color: #fcd34d;">Admin</a>
+
           <span class="nav-sep hidden sm:inline">|</span>
+
           <span id="nav-username" class="nav-link" style="cursor: default;"></span>
+
           <span id="nav-role" class="badge-user"></span>
+
           <button id="logout-btn" type="button" class="btn-ghost text-xs">Sair</button>
+
         </div>
+
       </div>
+
     </nav>
 
+
+
     <main class="max-w-5xl mx-auto px-4 py-8 pb-16">
+
       <div id="lobby-view">
-        <header class="page-header">
-          <p class="page-eyebrow">Multijogador</p>
-          <h1 class="page-title">Salas de partida</h1>
-          <p class="page-desc">Crie um código, envie ao outro time e jogue a mesma partida no CS2. Cada um com GSI instalado.</p>
+
+        <header class="page-header lobby-page-header">
+
+          <div class="lobby-page-header-text">
+
+            <p class="page-eyebrow">Multijogador</p>
+
+            <h1 class="page-title">Lobbys</h1>
+
+            <p class="page-desc">Crie um lobby, compartilhe o código ou entre nos lobbys abertos abaixo. Cada jogador precisa do GSI instalado.</p>
+
+          </div>
+
+          <div class="lobby-page-header-actions">
+            <button type="button" id="btn-open-join-modal" class="btn-ghost shrink-0">Entrar com código</button>
+            <button type="button" id="btn-open-create-modal" class="btn-primary shrink-0">Criar lobby</button>
+          </div>
         </header>
 
-        <div class="grid md:grid-cols-2 gap-6">
-          <section class="card p-6">
-            <h2 class="font-semibold mb-4">Criar partida</h2>
-            <p class="text-xs text-slate-500 mb-4">Gera código + inicia tracking. O lobby do CS2 você cria no jogo (como Faceit, mas sem servidor próprio).</p>
-            <form id="form-create" class="space-y-4">
-              <div>
-                <label class="stat-label block mb-2" for="create-title">Nome</label>
-                <input id="create-title" class="input-field" placeholder="Scrim 5v5" />
-              </div>
-              <div>
-                <label class="stat-label block mb-2" for="create-map">Mapa (sugestão)</label>
-                <select id="create-map" class="input-field">
-                  <option value="">Qualquer</option>
-                  <option value="de_mirage">Mirage</option>
-                  <option value="de_inferno">Inferno</option>
-                  <option value="de_dust2">Dust II</option>
-                  <option value="de_nuke">Nuke</option>
-                  <option value="de_ancient">Ancient</option>
-                  <option value="de_anubis">Anubis</option>
-                  <option value="de_vertigo">Vertigo</option>
-                </select>
-              </div>
-              <div>
-                <label class="stat-label block mb-2" for="create-password">Senha do lobby CS2 (opcional)</label>
-                <input id="create-password" class="input-field" placeholder="Mesma senha para todos no jogo" />
-              </div>
-              <button type="submit" class="btn-primary w-full">Criar partida e gerar código</button>
-            </form>
-          </section>
+        <section class="card p-6">
 
-          <section class="card p-6">
-            <h2 class="font-semibold mb-4">Entrar com código</h2>
-            <form id="form-join" class="space-y-4">
-              <div>
-                <label class="stat-label block mb-2" for="join-code">Código da sala</label>
-                <input id="join-code" class="input-field uppercase tracking-widest text-center text-lg" maxlength="6" placeholder="ABC123" required />
-              </div>
-              <button type="submit" class="btn-ghost w-full border-orange-500/40 text-orange-400">Entrar na sala</button>
-            </form>
-          </section>
-        </div>
-        <p id="lobby-error" class="text-red-400 text-sm mt-4 hidden"></p>
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+
+            <div>
+
+              <h2 class="font-semibold">Lobbys abertos</h2>
+
+              <p class="text-xs text-slate-500 mt-1">Partidas ativas ou aguardando jogadores — visíveis para todos logados.</p>
+
+            </div>
+
+            <button type="button" id="btn-refresh-rooms" class="btn-ghost text-xs">Atualizar</button>
+
+          </div>
+
+          <div id="public-rooms-loading" class="text-sm text-slate-500 hidden">Carregando lobbys…</div>
+
+          <p id="public-rooms-empty" class="text-sm text-slate-500 hidden">Nenhum lobby aberto no momento.</p>
+
+          <ul id="public-rooms-list" class="public-rooms-list space-y-2"></ul>
+
+        </section>
       </div>
 
+
+
       <div id="room-view" class="hidden">
-        <a href="/sala" id="room-back-link" class="back-link">← Voltar ao lobby</a>
 
         <section class="hero-account mb-6">
+
           <div class="flex flex-wrap items-start justify-between gap-4">
+
             <div>
-              <p id="room-eyebrow" class="page-eyebrow mb-1">Sala ativa</p>
+
+              <p id="room-eyebrow" class="page-eyebrow mb-1">Lobby ativo</p>
+
               <h1 id="room-title" class="text-3xl font-bold">...</h1>
+
               <p class="mt-2">
+
                 <span id="room-code" class="room-code-display"></span>
+
               </p>
+
               <p id="room-status" class="text-sm text-slate-500 mt-2"></p>
+
             </div>
+
             <div id="room-copy-actions" class="flex flex-col gap-2 shrink-0">
+
               <button type="button" id="btn-copy-link" class="btn-ghost text-sm">Copiar link</button>
+
               <button type="button" id="btn-copy-code" class="btn-ghost text-sm">Copiar código</button>
+
             </div>
+
           </div>
+
         </section>
+
+
 
         <div id="room-actions" class="flex flex-wrap gap-3 mb-6"></div>
 
+
+
         <section id="cs2-guide" class="card p-5 mb-6 hidden">
+
           <h2 class="font-semibold text-sm mb-3">Como entrar na partida no CS2</h2>
-          <p class="text-xs text-slate-500 mb-3">O site não abre o CS2 sozinho — isso é o que Faceit faz com cliente + servidor. Aqui você organiza o time e o tracking.</p>
+
+          <p class="text-xs text-slate-500 mb-3">O site não abre o CS2 sozinho — aqui você organiza o time e o tracking.</p>
+
           <ol id="cs2-guide-steps" class="text-sm text-slate-400 space-y-2 list-decimal list-inside"></ol>
-          <p id="room-lobby-password" class="mt-4 text-sm hidden"></p>
+
         </section>
+
+
+
+        <section id="team-balance-section" class="card p-5 mb-6 hidden">
+
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+
+            <div>
+
+              <h2 class="font-semibold">Sugestão de times</h2>
+
+              <p class="text-xs text-slate-500 mt-1">Balanceado internamente por skill. Patente e PR (pontos de ranking) são públicos — escolham CT/TR no CS2.</p>
+
+            </div>
+
+            <span id="team-balance-diff" class="text-xs text-slate-500"></span>
+
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-4">
+
+            <div class="rounded-lg border border-sky-500/30 bg-sky-950/20 p-4">
+
+              <h3 class="text-sm font-semibold text-sky-400 mb-3">Time A <span class="text-xs font-normal text-slate-500">(CT sugerido)</span></h3>
+
+              <ul id="team-a-list" class="space-y-2 text-sm"></ul>
+
+              <p id="team-a-rating" class="text-xs text-slate-500 mt-3"></p>
+
+            </div>
+
+            <div class="rounded-lg border border-orange-500/30 bg-orange-950/20 p-4">
+
+              <h3 class="text-sm font-semibold text-orange-400 mb-3">Time B <span class="text-xs font-normal text-slate-500">(TR sugerido)</span></h3>
+
+              <ul id="team-b-list" class="space-y-2 text-sm"></ul>
+
+              <p id="team-b-rating" class="text-xs text-slate-500 mt-3"></p>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+
+        <section id="tracking-section" class="card p-5 mb-6 hidden border-sky-500/20">
+
+          <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+
+            <div>
+
+              <h2 class="font-semibold text-sm">Status do tracking</h2>
+
+              <p id="tracking-summary" class="text-xs text-slate-500 mt-1"></p>
+
+            </div>
+
+            <span id="tracking-live-badge" class="hidden text-xs font-medium text-green-400 uppercase tracking-wider">Ao vivo</span>
+
+          </div>
+
+          <ul id="tracking-members" class="space-y-2 text-sm"></ul>
+
+          <p class="text-xs text-slate-600 mt-4">Cada jogador precisa do GSI instalado. Partidas são vinculadas automaticamente enquanto o lobby está ativo.</p>
+
+        </section>
+
+
 
         <section class="card p-5 mb-6">
+
           <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <h2 class="font-semibold">Jogadores na sala</h2>
+
+            <h2 class="font-semibold">Jogadores no lobby</h2>
+
             <span id="gsi-ready-label" class="text-xs text-slate-500"></span>
+
           </div>
+
           <ul id="members-list" class="space-y-2"></ul>
-          <p class="text-xs text-slate-600 mt-4">Verde = GSI conectado neste PC. Cada jogador instala o GSI em Minha conta (uma vez).</p>
+
+          <p class="text-xs text-slate-600 mt-4">Verde = GSI conectado neste PC. Cada jogador instala o GSI no menu do perfil (uma vez).</p>
+
         </section>
+
+
 
         <section id="result-section" class="card overflow-hidden hidden">
+
           <div class="px-5 py-4 border-b border-slate-800/80">
-            <h2 class="font-semibold">Resultado da sala</h2>
+
+            <h2 class="font-semibold">Resultado do lobby</h2>
+
             <p id="result-meta" class="text-xs text-slate-500 mt-1"></p>
+
           </div>
+
           <div class="overflow-x-auto">
+
             <table class="scoreboard-table w-full text-sm">
+
               <thead>
+
                 <tr class="text-slate-500 text-xs uppercase tracking-wider">
+
                   <th class="text-left p-4">Jogador</th>
+
                   <th class="text-center p-4">K</th>
+
                   <th class="text-center p-4">A</th>
+
                   <th class="text-center p-4">D</th>
+
                   <th class="text-center p-4">K/D</th>
+
                   <th class="text-center p-4">Conta</th>
+
                 </tr>
+
               </thead>
+
               <tbody id="result-body"></tbody>
+
             </table>
+
           </div>
-          <p id="result-empty" class="empty-state hidden text-sm">Nenhuma partida vinculada ainda. Joguem com a sala em <strong class="text-slate-400">Ao vivo</strong> e GSI ativo.</p>
+
+          <p id="result-empty" class="empty-state hidden text-sm"></p>
+
         </section>
+
       </div>
+
     </main>
+
   </div>
 
+  <div id="join-lobby-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="join-lobby-modal-title">
+    <div class="app-modal-backdrop" data-modal-close></div>
+    <div class="app-modal-panel">
+      <div class="app-modal-header">
+        <h2 id="join-lobby-modal-title" class="font-semibold text-lg">Entrar no lobby</h2>
+        <button type="button" class="app-modal-close btn-ghost text-xs" data-modal-close aria-label="Fechar">✕</button>
+      </div>
+      <form id="form-join" class="app-modal-body space-y-4">
+        <p class="text-xs text-slate-500">Digite o código compartilhado pelo host. Se o lobby for protegido, informe a senha.</p>
+        <div>
+          <label class="stat-label block mb-2" for="join-code">Código do lobby</label>
+          <input id="join-code" class="input-field uppercase tracking-widest text-center text-lg" maxlength="6" placeholder="ABC123" required />
+        </div>
+        <div>
+          <label class="stat-label block mb-2" for="join-password">Senha do lobby</label>
+          <input id="join-password" type="password" class="input-field" placeholder="Obrigatória se o lobby for protegido" autocomplete="current-password" />
+        </div>
+        <p id="join-modal-error" class="text-red-400 text-sm hidden"></p>
+        <div class="app-modal-footer">
+          <button type="button" class="btn-ghost" data-modal-close>Cancelar</button>
+          <button type="submit" class="btn-primary">Entrar no lobby</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="create-lobby-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="create-lobby-modal-title">
+
+    <div class="app-modal-backdrop" data-modal-close></div>
+
+    <div class="app-modal-panel">
+
+      <div class="app-modal-header">
+
+        <h2 id="create-lobby-modal-title" class="font-semibold text-lg">Criar lobby</h2>
+
+        <button type="button" class="app-modal-close btn-ghost text-xs" data-modal-close aria-label="Fechar">✕</button>
+
+      </div>
+
+      <form id="form-create" class="app-modal-body space-y-4">
+
+        <p class="text-xs text-slate-500">Gera um código e inicia o tracking da partida no site.</p>
+
+        <div>
+
+          <label class="stat-label block mb-2" for="create-title">Nome do lobby</label>
+
+          <input id="create-title" class="input-field" placeholder="Scrim 5v5" required />
+
+        </div>
+
+        <div>
+
+          <label class="stat-label block mb-2" for="create-password">Senha do lobby (opcional)</label>
+
+          <input id="create-password" type="password" class="input-field" placeholder="Quem entrar precisará desta senha" autocomplete="new-password" />
+
+        </div>
+
+        <p id="create-modal-error" class="text-red-400 text-sm hidden"></p>
+
+        <div class="app-modal-footer">
+
+          <button type="button" class="btn-ghost" data-modal-close>Cancelar</button>
+
+          <button type="submit" class="btn-primary">Criar lobby</button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+
   <script src="/js/api.js"></script>
+
+  <script src="/js/avatars.js"></script>
+
+  <script src="/js/gsi-setup.js"></script>
+
+  <script src="/js/shell.js"></script>
+
+  <script src="/js/steam-id.js"></script>
+
   <script src="/js/match-ui.js"></script>
+
   <script src="/js/nav.js"></script>
+
   <script src="/js/sala.js"></script>
+
 </body>
+
 </html>
+

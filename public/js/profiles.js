@@ -30,8 +30,8 @@ function sortProfiles(list, sortKey) {
     default:
       return copy.sort(
         (a, b) =>
-          (b.matches_played || 0) - (a.matches_played || 0) ||
-          Number(b.kd_ratio) - Number(a.kd_ratio)
+          (b.rank_points || 0) - (a.rank_points || 0) ||
+          (b.ranked_matches || 0) - (a.ranked_matches || 0)
       );
   }
 }
@@ -80,14 +80,18 @@ function renderProfiles(profiles) {
       const rankIndex = allProfiles.findIndex((x) => x.id === p.id) + 1;
       const rankLabel = rankIndex > 0 ? `#${rankIndex} no ranking` : '';
       const rankBadge = rankIndex > 0 ? `#${rankIndex}` : '';
+      const avatarHtml = window.CSTrackingAvatars
+        ? window.CSTrackingAvatars.html(p, 'user-avatar-md')
+        : `<div class="avatar">${initials(p.username)}</div>`;
       return `
     <a href="/profile?id=${p.id}" class="profile-card-link card card-interactive">
       ${rankBadge ? `<span class="profile-card-rank">${rankBadge}</span>` : ''}
       <div class="profile-card-head">
-        <div class="avatar">${initials(p.username)}</div>
+        ${avatarHtml}
         <div class="min-w-0">
-          <h3 class="profile-card-name">${p.username}</h3>
-          <p class="text-xs" style="color: var(--muted);">${rankLabel || `Posição ${i + 1}`}</p>
+          <h3 class="profile-card-name">${p.username}${window.CSTrackingSteamUi ? window.CSTrackingSteamUi.cardMetaHtml(p) : ''}</h3>
+          <p class="text-xs font-medium text-orange-400/90">${p.rank_name || 'Ferro'}</p>
+          <p class="text-xs" style="color: var(--muted);">${rankLabel || `Posição ${i + 1}`} · ${p.rank_points || 0} PR</p>
         </div>
       </div>
       <div class="profile-stat-grid">

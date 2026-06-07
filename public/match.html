@@ -22,8 +22,9 @@
         </div>
         <div id="nav-authed" class="nav-links hidden">
           <a data-nav="/profiles" href="/profiles" class="nav-link">Perfis</a>
-          <a id="nav-sala-link" data-nav="/sala" href="/sala" class="nav-link">Sala</a>
-          <a id="nav-conta-link" data-nav="/conta" href="/conta" class="nav-link">Minha conta</a>
+          <a id="nav-lobby-link" data-nav="/lobby" href="/lobby" class="nav-link">Lobby</a>
+          <a id="nav-profile-link" data-nav="/profile" href="#" class="nav-link">Perfil</a>
+          <a id="nav-settings-link" data-nav="/configuracoes" href="/configuracoes" class="nav-link">Configurações</a>
           <a id="nav-admin-link" data-nav="/admin" href="/admin" class="nav-link hidden" style="color: #fcd34d;">Admin</a>
           <span class="nav-sep hidden sm:inline">|</span>
           <span id="nav-username" class="nav-link" style="cursor: default;"></span>
@@ -34,8 +35,6 @@
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 py-8 pb-16">
-      <a id="back-link" href="/profiles" class="text-sm text-slate-500 hover:text-orange-400 inline-block mb-6">← Voltar</a>
-
       <p id="match-error" class="hidden text-red-400 text-sm mb-4"></p>
 
       <section id="match-header" class="hero-account mb-6 hidden">
@@ -78,6 +77,10 @@
   </div>
 
   <script src="/js/api.js"></script>
+  <script src="/js/avatars.js"></script>
+  <script src="/js/gsi-setup.js"></script>
+  <script src="/js/shell.js"></script>
+  <script src="/js/steam-id.js"></script>
   <script src="/js/match-ui.js"></script>
   <script src="/js/nav.js"></script>
   <script src="/js/match.js"></script>

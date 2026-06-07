@@ -19,9 +19,20 @@ const roomsRoutes = require('./routes/rooms');
 const PORT = process.env.PORT || 3000;
 const app = express();
 
+app.set('trust proxy', 1);
+
+const { httpsRedirect } = require('./middleware/httpsRedirect');
+app.use(httpsRedirect);
+
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(__dirname, 'data');
+
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
 
 // Log de qualquer POST GSI (antes das rotas) — ajuda a ver se o CS2 chega no servidor
 app.use('/api/gsi', (req, res, next) => {
@@ -52,9 +63,14 @@ const SPA_PAGES = {
   '/profiles': 'profiles.html',
   '/profile': 'profile.html',
   '/admin': 'admin.html',
+  '/configuracoes': 'configuracoes.html',
   '/conta': 'conta.html',
   '/match': 'match.html',
+  '/lobby': 'sala.html',
   '/sala': 'sala.html',
+  '/seguranca': 'seguranca.html',
+  '/privacidade': 'privacidade.html',
+  '/auth/steam': 'auth-steam.html',
 };
 
 app.get('*', (req, res, next) => {

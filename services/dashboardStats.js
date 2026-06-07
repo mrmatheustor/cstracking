@@ -75,7 +75,7 @@ function buildCharts(matches) {
   return { kd_by_match, matches_by_week };
 }
 
-async function attachStatsToMatches(db, rows) {
+async function attachStatsToMatches(db, rows, userSteamId) {
   const result = [];
   for (const match of rows) {
     const stats = await db.all(
@@ -83,7 +83,7 @@ async function attachStatsToMatches(db, rows) {
        FROM player_stats WHERE match_id = ?`,
       [match.id]
     );
-    const self_stat = pickSelfStats(match, stats);
+    const self_stat = pickSelfStats(match, stats, { userSteamId });
     result.push({ ...match, player_stats: stats, self_stat });
   }
   return result;
@@ -134,7 +134,8 @@ async function getFilteredMatches(db, userId, filters = {}) {
   params.push(limit);
 
   const rows = await db.all(sql, params);
-  return attachStatsToMatches(db, rows);
+  const user = await db.get(`SELECT steam_id FROM users WHERE id = ?`, [userId]);
+  return attachStatsToMatches(db, rows, user?.steam_id);
 }
 
 module.exports = {

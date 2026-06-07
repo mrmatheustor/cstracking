@@ -27,14 +27,19 @@ function pickSelfStats(match) {
   const stats = match?.player_stats || [];
   if (!stats.length) return match?.self_stat || null;
 
-  const ownerId = (match?.owner_steamid || '').trim();
-  if (ownerId) {
-    const found = stats.find((s) => (s.player_steamid || '').trim() === ownerId);
+  const SteamId = window.CSTrackingSteamId;
+  if (SteamId) {
+    const found = SteamId.findPlayerStatBySteamIds(
+      stats,
+      match?.owner_steamid,
+      match?.user_steam_id
+    );
     if (found) return found;
   }
+
   if (match?.self_stat) return match.self_stat;
   if (stats.length === 1) return stats[0];
-  return stats[0];
+  return null;
 }
 
 function scoreLine(match, main) {

@@ -1,0 +1,43 @@
+/** Normaliza Steam ID / account ID para SteamID64 comparável (browser). */
+
+const STEAM64_BASE = 76561197960265728n;
+
+function toSteamId64(value) {
+  const s = String(value ?? '').trim();
+  if (!s) return '';
+
+  if (/^7656119[0-9]{10}$/.test(s)) return s;
+
+  if (/^\d+$/.test(s)) {
+    try {
+      const n = BigInt(s);
+      if (n < STEAM64_BASE) return String(STEAM64_BASE + n);
+      return s;
+    } catch {
+      return s;
+    }
+  }
+
+  const legacy = s.match(/^STEAM_[0-5]:([01]):(\d+)$/i);
+  if (legacy) {
+    const y = BigInt(legacy[1]);
+    const z = BigInt(legacy[2]);
+    return String(STEAM64_BASE + z * 2n + y);
+  }
+
+  return s;
+}
+
+function findPlayerStatBySteamIds(stats, ...ids) {
+  const normalized = [...new Set(ids.map(toSteamId64).filter(Boolean))];
+  if (!normalized.length || !stats?.length) return null;
+
+  for (const stat of stats) {
+    const sid = toSteamId64(stat.player_steamid);
+    if (sid && normalized.includes(sid)) return stat;
+  }
+
+  return null;
+}
+
+window.CSTrackingSteamId = { toSteamId64, findPlayerStatBySteamIds };

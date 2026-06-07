@@ -1,6 +1,8 @@
 const { v4: uuidv4 } = require('uuid');
 const liveStore = require('./gsiLiveStore');
 const { getLiveRoomIdForUser } = require('./roomService');
+const { normalizeTeam, applyMatchRating } = require('./playerRating');
+const { toSteamId64 } = require('./steamId');
 
 const IDLE_SAVE_MS = 90000;
 const ACTIVE_PHASES = new Set(['warmup', 'live', 'intermission', 'gameover', 'paused']);
@@ -46,7 +48,13 @@ function extractScores(map, gameMode, playerStats) {
 function extractOwnerSteamId(payload) {
   const p = payload?.player;
   if (!p || typeof p !== 'object') return '';
-  return String(p.steamid || p.accountid || '').trim();
+  return toSteamId64(p.steamid || p.accountid || '');
+}
+
+function extractOwnerTeam(payload) {
+  const p = payload?.player;
+  if (!p || typeof p !== 'object') return null;
+  return normalizeTeam(p.team);
 }
 
 function extractPlayerStats(payload) {
@@ -72,8 +80,9 @@ function extractPlayerStats(payload) {
 
 function mapPlayer(p) {
   const stats = p.match_stats || p.state || {};
+  const rawId = p.steamid || p.accountid || '';
   return {
-    player_steamid: String(p.steamid || p.accountid || ''),
+    player_steamid: toSteamId64(rawId) || String(rawId).trim(),
     player_name: p.name || p.username || 'Desconhecido',
     kills: Number(stats.kills ?? 0),
     assists: Number(stats.assists ?? 0),
@@ -92,8 +101,9 @@ function parsePayload(payload) {
   const scores = extractScores(map, gameMode, playerStats);
 
   const ownerSteamId = extractOwnerSteamId(payload);
+  const ownerTeam = extractOwnerTeam(payload);
 
-  return { map, mapName, phase, gameMode, playerStats, scores, ownerSteamId };
+  return { map, mapName, phase, gameMode, playerStats, scores, ownerSteamId, ownerTeam };
 }
 
 /** Ignora heartbeat do menu sem mapa válido. */
@@ -112,7 +122,7 @@ function hasMeaningfulStats(live) {
   return elapsed > 45000;
 }
 
-function createLiveSession(mapName, phase, gameMode, scores, playerStats, ownerSteamId = '') {
+function createLiveSession(mapName, phase, gameMode, scores, playerStats, ownerSteamId = '', ownerTeam = null) {
   return {
     match_key: `${mapName}-${Date.now()}-${uuidv4().slice(0, 8)}`,
     map_name: mapName,
@@ -122,6 +132,7 @@ function createLiveSession(mapName, phase, gameMode, scores, playerStats, ownerS
     score_t: scores.scoreT,
     player_stats: playerStats,
     owner_steamid: ownerSteamId || '',
+    owner_team: ownerTeam || null,
     started_at: new Date().toISOString(),
   };
 }
@@ -137,6 +148,9 @@ function updateLiveSession(live, parsed) {
   }
   if (parsed.ownerSteamId) {
     live.owner_steamid = parsed.ownerSteamId;
+  }
+  if (parsed.ownerTeam) {
+    live.owner_team = parsed.ownerTeam;
   }
 }
 
@@ -167,10 +181,15 @@ async function persistMatch(userId, live, dbHelpers, reason) {
   let matchId = existing?.id;
   const finalPhase = reason === 'gameover' ? 'gameover' : 'finished';
 
+  const userRow = await get(`SELECT steam_id FROM users WHERE id = ?`, [userId]);
+  const ownerSteam =
+    toSteamId64(live.owner_steamid) || toSteamId64(userRow?.steam_id) || live.owner_steamid || '';
+  if (ownerSteam) live.owner_steamid = ownerSteam;
+
   if (!matchId) {
     const insert = await run(
-      `INSERT INTO matches (user_id, match_key, map_name, map_phase, game_mode, score_ct, score_t, owner_steamid, room_id, finished, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))`,
+      `INSERT INTO matches (user_id, match_key, map_name, map_phase, game_mode, score_ct, score_t, owner_steamid, owner_team, room_id, finished, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))`,
       [
         userId,
         matchKey,
@@ -180,13 +199,14 @@ async function persistMatch(userId, live, dbHelpers, reason) {
         live.score_ct,
         live.score_t,
         live.owner_steamid || null,
+        live.owner_team || null,
         roomId || null,
       ]
     );
     matchId = insert.lastID;
   } else {
     await run(
-      `UPDATE matches SET map_name = ?, map_phase = ?, game_mode = ?, score_ct = ?, score_t = ?, owner_steamid = COALESCE(?, owner_steamid), room_id = COALESCE(?, room_id), finished = 1, updated_at = datetime('now')
+      `UPDATE matches SET map_name = ?, map_phase = ?, game_mode = ?, score_ct = ?, score_t = ?, owner_steamid = COALESCE(?, owner_steamid), owner_team = COALESCE(?, owner_team), room_id = COALESCE(?, room_id), finished = 1, updated_at = datetime('now')
        WHERE id = ?`,
       [
         live.map_name,
@@ -195,6 +215,7 @@ async function persistMatch(userId, live, dbHelpers, reason) {
         live.score_ct,
         live.score_t,
         live.owner_steamid || null,
+        live.owner_team || null,
         roomId || null,
         matchId,
       ]
@@ -203,6 +224,7 @@ async function persistMatch(userId, live, dbHelpers, reason) {
   }
 
   for (const ps of live.player_stats || []) {
+    ps.player_steamid = toSteamId64(ps.player_steamid) || ps.player_steamid;
     await run(
       `INSERT INTO player_stats (match_id, player_steamid, player_name, kills, assists, deaths, mvps, score)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -211,7 +233,20 @@ async function persistMatch(userId, live, dbHelpers, reason) {
   }
 
   liveStore.markFinalized(userId, matchKey);
-  return { saved: true, matchId, message: `Partida salva (${reason})` };
+
+  let ratingResult = null;
+  try {
+    ratingResult = await applyMatchRating(dbHelpers, userId, matchId);
+  } catch (err) {
+    console.error(`[Rating] Erro ao aplicar MMR user_id=${userId} match_id=${matchId}:`, err.message);
+  }
+
+  return {
+    saved: true,
+    matchId,
+    message: `Partida salva (${reason})`,
+    rating: ratingResult,
+  };
 }
 
 /**
@@ -271,12 +306,15 @@ async function processGsiPayload(userId, payload, dbHelpers) {
       parsed.gameMode,
       parsed.scores,
       parsed.playerStats,
-      parsed.ownerSteamId
+      parsed.ownerSteamId,
+      parsed.ownerTeam
     );
     if (roomId) live.room_id = roomId;
     liveStore.setLiveMatch(userId, live);
   } else if (live) {
     updateLiveSession(live, parsed);
+    const roomId = await getLiveRoomIdForUser(dbHelpers, userId);
+    if (roomId) live.room_id = roomId;
     liveStore.setLiveMatch(userId, live);
   }
 
