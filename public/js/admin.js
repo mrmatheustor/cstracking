@@ -141,13 +141,14 @@ function formatRepairLog(result) {
   );
   for (const row of result.changes || []) {
     lines.push(
-      `#${row.matchId} ${row.user} · ${row.map || '?'} · ${row.fromName} → ${row.toName}`
+      `#${row.matchId} ${row.user} · ${row.map || '?'} · ${row.fromName} → ${row.toName} (${row.method || '?'})`
     );
   }
   for (const row of (result.skipped || []).slice(0, 15)) {
     lines.push(
       `[skip] #${row.matchId} ${row.user || ''} · ${row.map || ''} — ${row.reason}`
     );
+    if (row.players) lines.push(`       placar: ${row.players}`);
   }
   if ((result.skipped || []).length > 15) {
     lines.push(`... e mais ${result.skipped.length - 15} ignoradas`);

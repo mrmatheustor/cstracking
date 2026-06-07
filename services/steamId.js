@@ -25,6 +25,11 @@ function toSteamId64(value) {
     return String(STEAM64_BASE + z * 2n + y);
   }
 
+  const steam3 = s.match(/^\[U:1:(\d+)\]$/i);
+  if (steam3) {
+    return String(STEAM64_BASE + BigInt(steam3[1]));
+  }
+
   return s;
 }
 

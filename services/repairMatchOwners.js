@@ -7,6 +7,11 @@ function normalizeNameKey(name) {
     .replace(/[_\s]+/g, ' ');
 }
 
+function formatStatLine(stat) {
+  const sid = toSteamId64(stat.player_steamid) || stat.player_steamid || '(vazio)';
+  return `${stat.player_name || '?'} [${sid}]`;
+}
+
 async function normalizePlayerSteamIds(db, apply) {
   const allStats = await db.all(
     `SELECT id, player_steamid FROM player_stats WHERE player_steamid IS NOT NULL AND player_steamid != ''`
@@ -35,6 +40,75 @@ function findStatByUsername(stats, username) {
   if (!key) return null;
   const hits = stats.filter((s) => normalizeNameKey(s.player_name) === key);
   return hits.length === 1 ? hits[0] : null;
+}
+
+/** Primeira linha inserida = payload.player do GSI (dono da sessão). */
+function findStatByGsiOrder(stats) {
+  if (!stats.length) return null;
+  return stats.reduce((min, s) => (s.id < min.id ? s : min), stats[0]);
+}
+
+/**
+ * Quando owner_steamid aponta para outro jogador, tenta achar a linha real do dono.
+ */
+function findStatWhenOwnerWrong(stats, userSid, ownerSid) {
+  const gsiSelf = findStatByGsiOrder(stats);
+  if (!gsiSelf) return null;
+
+  const gsiSid = toSteamId64(gsiSelf.player_steamid);
+  if (!gsiSid || gsiSid !== ownerSid) {
+    return { stat: gsiSelf, method: 'gsi_player' };
+  }
+
+  const withoutOwner = stats.filter((s) => {
+    const sid = toSteamId64(s.player_steamid);
+    return !sid || sid !== ownerSid;
+  });
+
+  if (withoutOwner.length === 1) {
+    return { stat: withoutOwner[0], method: 'unico_nao_owner' };
+  }
+
+  const emptySteam = withoutOwner.filter((s) => !toSteamId64(s.player_steamid));
+  if (emptySteam.length === 1) {
+    return { stat: emptySteam[0], method: 'steam_vazio' };
+  }
+
+  if (withoutOwner.length > 1) {
+    const byOrder = findStatByGsiOrder(withoutOwner);
+    if (byOrder && toSteamId64(byOrder.player_steamid) !== ownerSid) {
+      return { stat: byOrder, method: 'gsi_excl_owner' };
+    }
+  }
+
+  return null;
+}
+
+async function backfillStatSteamId(db, stat, userSid, apply) {
+  if (!stat || !userSid) return;
+  if (toSteamId64(stat.player_steamid) === userSid) return;
+  if (apply) {
+    await db.run(`UPDATE player_stats SET player_steamid = ? WHERE id = ?`, [userSid, stat.id]);
+  }
+  stat.player_steamid = userSid;
+}
+
+function resolveUserStatRow(stats, { userSid, username, ownerSid }) {
+  if (!stats?.length) return null;
+
+  let userStat = findStatBySteamId(stats, userSid);
+  if (userStat) return { stat: userStat, method: 'steam_id' };
+
+  userStat = findStatByUsername(stats, username);
+  if (userStat) return { stat: userStat, method: 'username' };
+
+  const owner = toSteamId64(ownerSid);
+  if (userSid && owner && owner !== userSid) {
+    const guess = findStatWhenOwnerWrong(stats, userSid, owner);
+    if (guess) return guess;
+  }
+
+  return null;
 }
 
 /**
@@ -68,7 +142,7 @@ async function repairMatchOwners(db, options = {}) {
   for (const match of matches) {
     const userSid = toSteamId64(match.steam_id);
     const stats = await db.all(
-      `SELECT id, player_steamid, player_name, kills, deaths FROM player_stats WHERE match_id = ?`,
+      `SELECT id, player_steamid, player_name, kills, deaths FROM player_stats WHERE match_id = ? ORDER BY id ASC`,
       [match.id]
     );
 
@@ -83,21 +157,26 @@ async function repairMatchOwners(db, options = {}) {
         map: match.map_name,
         user: match.username,
         reason: 'conta sem steam_id — vincule Steam em Configurações',
+        players: stats.map(formatStatLine).join(', '),
       });
       continue;
     }
 
-    let userStat = findStatBySteamId(stats, userSid);
+    let userStat = null;
+    let method = null;
 
-    if (!userStat) {
-      userStat = findStatByUsername(stats, match.username);
-      if (userStat && apply) {
-        await db.run(`UPDATE player_stats SET player_steamid = ? WHERE id = ?`, [
-          userSid,
-          userStat.id,
-        ]);
-        userStat.player_steamid = userSid;
-      }
+    const resolved = resolveUserStatRow(stats, {
+      userSid,
+      username: match.username,
+      ownerSid: match.owner_steamid,
+    });
+    if (resolved) {
+      userStat = resolved.stat;
+      method = resolved.method;
+    }
+
+    if (userStat && method !== 'steam_id') {
+      await backfillStatSteamId(db, userStat, userSid, apply);
     }
 
     if (!userStat) {
@@ -106,7 +185,7 @@ async function repairMatchOwners(db, options = {}) {
         map: match.map_name,
         user: match.username,
         reason: 'seu Steam ID/nome não aparece no placar desta partida',
-        players: stats.map((s) => s.player_name).join(', '),
+        players: stats.map(formatStatLine).join(', '),
       });
       continue;
     }
@@ -128,6 +207,7 @@ async function repairMatchOwners(db, options = {}) {
       fromName: wrongName,
       to: userSid,
       toName: userStat.player_name,
+      method,
     });
 
     if (apply) {
@@ -151,4 +231,8 @@ async function repairMatchOwners(db, options = {}) {
   };
 }
 
-module.exports = { repairMatchOwners, normalizePlayerSteamIds };
+module.exports = {
+  repairMatchOwners,
+  normalizePlayerSteamIds,
+  resolveUserStatRow,
+};

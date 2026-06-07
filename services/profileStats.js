@@ -110,9 +110,9 @@ async function getMatchesForProfile(db, userId, limit = 30) {
   const result = [];
   for (const match of matches) {
     const stats = await db.all(
-      `SELECT player_steamid, player_name, kills, assists, deaths, mvps, score
+      `SELECT id, player_steamid, player_name, kills, assists, deaths, mvps, score
        FROM player_stats WHERE match_id = ?
-       ORDER BY score DESC, kills DESC`,
+       ORDER BY id ASC`,
       [match.id]
     );
     const self_stat = pickSelfStats(match, stats, { userSteamId: user?.steam_id });
@@ -135,9 +135,9 @@ async function getMatchDetail(db, userId, matchId) {
   if (!match) return null;
 
   const player_stats = await db.all(
-    `SELECT player_steamid, player_name, kills, assists, deaths, mvps, score
+    `SELECT id, player_steamid, player_name, kills, assists, deaths, mvps, score
      FROM player_stats WHERE match_id = ?
-     ORDER BY score DESC, kills DESC`,
+     ORDER BY id ASC`,
     [matchId]
   );
 

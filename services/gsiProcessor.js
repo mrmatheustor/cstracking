@@ -65,9 +65,9 @@ function extractPlayerStats(payload) {
   }
 
   if (payload.allplayers && typeof payload.allplayers === 'object') {
-    for (const p of Object.values(payload.allplayers)) {
+    for (const [key, p] of Object.entries(payload.allplayers)) {
       if (p && typeof p === 'object') {
-        const mapped = mapPlayer(p);
+        const mapped = mapPlayer(p, key);
         if (!players.some((x) => x.player_steamid && x.player_steamid === mapped.player_steamid)) {
           players.push(mapped);
         }
@@ -78,9 +78,9 @@ function extractPlayerStats(payload) {
   return players.filter((p) => p.player_name || p.player_steamid);
 }
 
-function mapPlayer(p) {
+function mapPlayer(p, keyId = '') {
   const stats = p.match_stats || p.state || {};
-  const rawId = p.steamid || p.accountid || '';
+  const rawId = p.steamid || p.accountid || keyId || '';
   return {
     player_steamid: toSteamId64(rawId) || String(rawId).trim(),
     player_name: p.name || p.username || 'Desconhecido',
@@ -182,8 +182,12 @@ async function persistMatch(userId, live, dbHelpers, reason) {
   const finalPhase = reason === 'gameover' ? 'gameover' : 'finished';
 
   const userRow = await get(`SELECT steam_id FROM users WHERE id = ?`, [userId]);
-  const ownerSteam =
-    toSteamId64(live.owner_steamid) || toSteamId64(userRow?.steam_id) || live.owner_steamid || '';
+  const userSid = toSteamId64(userRow?.steam_id);
+  const liveOwner = toSteamId64(live.owner_steamid);
+  let ownerSteam = liveOwner || userSid || live.owner_steamid || '';
+  if (userSid && liveOwner && liveOwner !== userSid) {
+    ownerSteam = userSid;
+  }
   if (ownerSteam) live.owner_steamid = ownerSteam;
 
   if (!matchId) {

@@ -26,14 +26,13 @@ async function main() {
 
   for (const row of result.changes) {
     console.log(
-      `#${row.matchId} ${row.user} · ${row.map || '?'} · owner ${row.from || '(vazio)'} (${row.fromName}) → ${row.to} (${row.toName})`
+      `#${row.matchId} ${row.user} · ${row.map || '?'} · ${row.fromName} → ${row.toName} (${row.method || '?'})`
     );
   }
 
   for (const row of result.skipped.slice(0, 20)) {
-    console.log(
-      `[skip] #${row.matchId} ${row.user || ''} · ${row.map || ''} — ${row.reason}${row.players ? ` [${row.players}]` : ''}`
-    );
+    console.log(`[skip] #${row.matchId} ${row.user || ''} · ${row.map || ''} — ${row.reason}`);
+    if (row.players) console.log(`       placar: ${row.players}`);
   }
   if (result.skipped.length > 20) {
     console.log(`[skip] ... e mais ${result.skipped.length - 20}`);
