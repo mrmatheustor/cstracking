@@ -6,28 +6,29 @@ function pickSelfStats(match, playerStats, options = {}) {
   const stats = playerStats || [];
   if (!stats.length) return null;
 
-  const found = findPlayerStatBySteamIds(
-    stats,
-    options.userSteamId,
-    match?.user_steam_id,
-    match?.owner_steamid
-  );
-  if (found) return found;
+  const userSid = toSteamId64(options.userSteamId || match?.user_steam_id);
+  const ownerSid = toSteamId64(match?.owner_steamid);
+
+  if (userSid) {
+    const byUser = findPlayerStatBySteamIds(stats, userSid);
+    if (byUser) return byUser;
+    if (stats.length === 1) return stats[0];
+    return match?.self_stat || null;
+  }
+
+  const byOwner = findPlayerStatBySteamIds(stats, ownerSid);
+  if (byOwner) return byOwner;
 
   if (match?.self_stat) {
     const linked = findPlayerStatBySteamIds(
       stats,
       match.self_stat.player_steamid,
-      match?.owner_steamid,
-      options.userSteamId,
-      match?.user_steam_id
+      ownerSid
     );
     if (linked) return linked;
   }
 
-  // Só jogador na sessão (ex.: DM sem allplayers) — única linha confiável.
   if (stats.length === 1) return stats[0];
-
   return null;
 }
 

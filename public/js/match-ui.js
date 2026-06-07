@@ -28,18 +28,39 @@ function pickSelfStats(match) {
   if (!stats.length) return match?.self_stat || null;
 
   const SteamId = window.CSTrackingSteamId;
-  if (SteamId) {
-    const found = SteamId.findPlayerStatBySteamIds(
-      stats,
-      match?.user_steam_id,
-      match?.owner_steamid
-    );
-    if (found) return found;
+  if (!SteamId) {
+    if (match?.self_stat) return match.self_stat;
+    if (stats.length === 1) return stats[0];
+    return null;
   }
 
+  const userSid = SteamId.toSteamId64(match?.user_steam_id);
+  const ownerSid = SteamId.toSteamId64(match?.owner_steamid);
+
+  if (userSid) {
+    const byUser = SteamId.findPlayerStatBySteamIds(stats, userSid);
+    if (byUser) return byUser;
+    if (stats.length === 1) return stats[0];
+    return match?.self_stat || null;
+  }
+
+  const byOwner = SteamId.findPlayerStatBySteamIds(stats, ownerSid);
+  if (byOwner) return byOwner;
   if (match?.self_stat) return match.self_stat;
   if (stats.length === 1) return stats[0];
   return null;
+}
+
+function isSelfPlayer(match, player) {
+  const self = pickSelfStats(match);
+  if (!self || !player) return false;
+  if (self === player) return true;
+  const SteamId = window.CSTrackingSteamId;
+  if (!SteamId) return false;
+  const a = SteamId.toSteamId64(self.player_steamid);
+  const b = SteamId.toSteamId64(player.player_steamid);
+  if (a && b && a === b) return true;
+  return self.player_name === player.player_name;
 }
 
 function scoreLine(match, main) {
@@ -68,6 +89,7 @@ window.MatchUI = {
   isDmMode,
   scoreLine,
   pickSelfStats,
+  isSelfPlayer,
   matchUrl,
   kdRatio,
 };

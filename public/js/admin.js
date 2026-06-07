@@ -83,6 +83,7 @@ function renderUsers(users) {
       <tr class="border-t border-slate-800">
         <td class="py-3 px-4">${u.username} ${isSelf ? '<span class="text-xs text-slate-500">(voce)</span>' : ''}</td>
         <td class="py-3 px-4 text-slate-400">${u.email}</td>
+        <td class="py-3 px-4 font-mono text-xs text-slate-500">${u.steam_id || '—'}</td>
         <td class="py-3 px-4">${u.role === 'admin' ? '<span class="text-amber-400">Admin</span>' : 'Jogador'}</td>
         <td class="py-3 px-4 text-amber-400/90 font-mono">${s.mmr ?? '—'}</td>
         <td class="py-3 px-4">${s.matches_played ?? 0}</td>
@@ -129,10 +130,74 @@ async function loadUsers() {
   renderUsers(users);
 }
 
+function formatRepairLog(result) {
+  const lines = [];
+  const s = result.summary || {};
+  lines.push(
+    `Banco: ${result.dbPath}`,
+    `Partidas finalizadas: ${s.totalFinishedMatches} | Contas com Steam: ${s.usersWithSteam}`,
+    `Corrigidas: ${s.fixed} | Ignoradas: ${s.skipped} | IDs normalizados: ${s.normalizedStats}`,
+    ''
+  );
+  for (const row of result.changes || []) {
+    lines.push(
+      `#${row.matchId} ${row.user} · ${row.map || '?'} · ${row.fromName} → ${row.toName}`
+    );
+  }
+  for (const row of (result.skipped || []).slice(0, 15)) {
+    lines.push(
+      `[skip] #${row.matchId} ${row.user || ''} · ${row.map || ''} — ${row.reason}`
+    );
+  }
+  if ((result.skipped || []).length > 15) {
+    lines.push(`... e mais ${result.skipped.length - 15} ignoradas`);
+  }
+  return lines.join('\n');
+}
+
+async function runRepair(apply) {
+  const msg = document.getElementById('repair-msg');
+  const log = document.getElementById('repair-log');
+  const dryBtn = document.getElementById('repair-dry-btn');
+  const applyBtn = document.getElementById('repair-apply-btn');
+  msg.classList.remove('hidden');
+  msg.textContent = apply ? 'Aplicando correções…' : 'Simulando…';
+  msg.className = 'text-sm text-slate-400';
+  dryBtn.disabled = true;
+  applyBtn.disabled = true;
+
+  try {
+    const result = await api.apiRequest(
+      `/api/admin/repair-match-owners?apply=${apply ? '1' : '0'}`,
+      { method: 'POST' }
+    );
+    log.textContent = formatRepairLog(result);
+    log.classList.remove('hidden');
+    const fixed = result.summary?.fixed || 0;
+    msg.textContent = apply
+      ? `Concluído: ${fixed} partida(s) corrigida(s).`
+      : `Simulação: ${fixed} partida(s) seriam corrigidas.`;
+    msg.className = `text-sm ${fixed ? 'text-green-400' : 'text-amber-400'}`;
+    if (apply && fixed) await loadOverview();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'text-sm text-red-400';
+  } finally {
+    dryBtn.disabled = false;
+    applyBtn.disabled = false;
+  }
+}
+
 async function init() {
   const user = await window.CSTrackingNav.initNav({ adminOnly: true });
   if (!user) return;
   currentUserId = user.id;
+
+  document.getElementById('repair-dry-btn')?.addEventListener('click', () => runRepair(false));
+  document.getElementById('repair-apply-btn')?.addEventListener('click', () => {
+    if (!window.confirm('Gravar correções no banco de produção?')) return;
+    runRepair(true);
+  });
 
   await loadOverview();
   await loadUsers();

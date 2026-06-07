@@ -5,6 +5,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const profileStats = require('../services/profileStats');
 const adminOverview = require('../services/adminOverview');
 const { getAdminRating } = require('../services/playerRating');
+const { repairMatchOwners } = require('../services/repairMatchOwners');
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const db = await getDb();
     const users = await db.all(
-      `SELECT id, username, email, role, created_at FROM users ORDER BY id ASC`
+      `SELECT id, username, email, role, steam_id, created_at FROM users ORDER BY id ASC`
     );
     const profiles = await profileStats.listProfiles(db);
 
@@ -78,6 +79,17 @@ router.patch(
     await db.run(`UPDATE users SET role = ? WHERE id = ?`, [role, userId]);
 
     res.json({ message: 'Papel atualizado', userId, role });
+  })
+);
+
+router.post(
+  '/repair-match-owners',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const apply = req.query.apply === '1' || req.body?.apply === true;
+    const db = await getDb();
+    const result = await repairMatchOwners(db, { apply });
+    res.json(result);
   })
 );
 

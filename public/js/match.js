@@ -1,12 +1,11 @@
 const api = window.CSTrackingAPI;
 const UI = window.MatchUI;
 
-function sortPlayers(stats, ownerSteamid, userSteamId) {
-  const SteamId = window.CSTrackingSteamId;
+function sortPlayers(stats, match) {
   const copy = [...stats];
   copy.sort((a, b) => {
-    const aSelf = SteamId?.findPlayerStatBySteamIds([a], userSteamId, ownerSteamid);
-    const bSelf = SteamId?.findPlayerStatBySteamIds([b], userSteamId, ownerSteamid);
+    const aSelf = UI.isSelfPlayer(match, a);
+    const bSelf = UI.isSelfPlayer(match, b);
     if (!!aSelf !== !!bSelf) return aSelf ? -1 : 1;
     return (b.score || 0) - (a.score || 0) || (b.kills || 0) - (a.kills || 0);
   });
@@ -30,17 +29,11 @@ function renderScoreboard(match, stats) {
   countEl.textContent = `${stats.length} jogador${stats.length !== 1 ? 'es' : ''}`;
   if (stats.length > 1) hint.classList.remove('hidden');
 
-  const ownerId = match.owner_steamid || '';
-  const userSteamId = match.user_steam_id || '';
-  const sorted = sortPlayers(stats, ownerId, userSteamId);
+  const sorted = sortPlayers(stats, match);
 
   body.innerHTML = sorted
     .map((p, i) => {
-      const isSelf = !!window.CSTrackingSteamId?.findPlayerStatBySteamIds(
-        [p],
-        userSteamId,
-        ownerId
-      );
+      const isSelf = UI.isSelfPlayer(match, p);
       const rowClass = isSelf ? 'scoreboard-row-self' : '';
       return `
       <tr class="${rowClass}">
