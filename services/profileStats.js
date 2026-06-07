@@ -9,13 +9,13 @@ const OWNER_STATS_JOIN = `
   LEFT JOIN player_stats ps ON ps.match_id = m.id
     AND (
       (
-        m.owner_steamid IS NOT NULL AND m.owner_steamid != ''
-        AND ps.player_steamid = m.owner_steamid
+        u.steam_id IS NOT NULL AND u.steam_id != ''
+        AND ps.player_steamid = u.steam_id
       )
       OR (
-        (m.owner_steamid IS NULL OR m.owner_steamid = '')
-        AND u.steam_id IS NOT NULL AND u.steam_id != ''
-        AND ps.player_steamid = u.steam_id
+        (u.steam_id IS NULL OR u.steam_id = '')
+        AND m.owner_steamid IS NOT NULL AND m.owner_steamid != ''
+        AND ps.player_steamid = m.owner_steamid
       )
       OR (
         (m.owner_steamid IS NULL OR m.owner_steamid = '')

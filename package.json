@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "node --watch --watch-path=.env server.js",
     "start": "node server.js",
+    "repair:matches": "node scripts/repair-match-owners.js",
+    "repair:matches:apply": "node scripts/repair-match-owners.js --apply",
     "install:gsi": "powershell -ExecutionPolicy Bypass -File scripts/install-gsi-cfg.ps1"
   },
   "keywords": ["cs2", "gsi", "tracking"],

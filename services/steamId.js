@@ -36,12 +36,15 @@ function steamIdsEqual(a, b) {
 }
 
 function findPlayerStatBySteamIds(stats, ...ids) {
-  const normalized = [...new Set(ids.map(toSteamId64).filter(Boolean))];
-  if (!normalized.length || !stats?.length) return null;
+  const ordered = ids.map(toSteamId64).filter(Boolean);
+  const unique = [...new Set(ordered)];
+  if (!unique.length || !stats?.length) return null;
 
-  for (const stat of stats) {
-    const sid = toSteamId64(stat.player_steamid);
-    if (sid && normalized.includes(sid)) return stat;
+  for (const id of unique) {
+    for (const stat of stats) {
+      const sid = toSteamId64(stat.player_steamid);
+      if (sid && sid === id) return stat;
+    }
   }
 
   return null;

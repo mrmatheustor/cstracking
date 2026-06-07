@@ -31,8 +31,8 @@ function pickSelfStats(match) {
   if (SteamId) {
     const found = SteamId.findPlayerStatBySteamIds(
       stats,
-      match?.owner_steamid,
-      match?.user_steam_id
+      match?.user_steam_id,
+      match?.owner_steamid
     );
     if (found) return found;
   }

@@ -5,8 +5,8 @@ function sortPlayers(stats, ownerSteamid, userSteamId) {
   const SteamId = window.CSTrackingSteamId;
   const copy = [...stats];
   copy.sort((a, b) => {
-    const aSelf = SteamId?.findPlayerStatBySteamIds([a], ownerSteamid, userSteamId);
-    const bSelf = SteamId?.findPlayerStatBySteamIds([b], ownerSteamid, userSteamId);
+    const aSelf = SteamId?.findPlayerStatBySteamIds([a], userSteamId, ownerSteamid);
+    const bSelf = SteamId?.findPlayerStatBySteamIds([b], userSteamId, ownerSteamid);
     if (!!aSelf !== !!bSelf) return aSelf ? -1 : 1;
     return (b.score || 0) - (a.score || 0) || (b.kills || 0) - (a.kills || 0);
   });
@@ -38,8 +38,8 @@ function renderScoreboard(match, stats) {
     .map((p, i) => {
       const isSelf = !!window.CSTrackingSteamId?.findPlayerStatBySteamIds(
         [p],
-        ownerId,
-        userSteamId
+        userSteamId,
+        ownerId
       );
       const rowClass = isSelf ? 'scoreboard-row-self' : '';
       return `
