@@ -93,4 +93,26 @@ router.post(
   })
 );
 
+router.delete(
+  '/matches/:matchId',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const matchId = Number(req.params.matchId);
+    if (!matchId) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const db = await getDb();
+    const match = await db.get(`SELECT id FROM matches WHERE id = ?`, [matchId]);
+    if (!match) {
+      return res.status(404).json({ error: 'Partida não encontrada' });
+    }
+
+    await db.run(`DELETE FROM player_stats WHERE match_id = ?`, [matchId]);
+    await db.run(`DELETE FROM matches WHERE id = ?`, [matchId]);
+
+    res.json({ message: 'Partida removida', matchId });
+  })
+);
+
 module.exports = router;

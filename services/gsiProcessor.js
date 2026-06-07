@@ -31,9 +31,12 @@ function isDeathmatchMode(mode) {
   return mode === 'deathmatch' || mode === 'arms_race';
 }
 
-function extractScores(map, gameMode, playerStats) {
+function extractScores(map, gameMode, playerStats, payload) {
   if (isDeathmatchMode(gameMode)) {
-    const you = playerStats[0];
+    const you =
+      payload?.player && typeof payload.player === 'object'
+        ? mapPlayer(payload.player)
+        : playerStats[0];
     return {
       scoreCt: you?.score ?? you?.kills ?? 0,
       scoreT: you?.deaths ?? 0,
@@ -92,13 +95,105 @@ function mapPlayer(p, keyId = '') {
   };
 }
 
+function statMergeKey(p) {
+  const sid = toSteamId64(p?.player_steamid);
+  if (sid) return `s:${sid}`;
+  const name = String(p?.player_name || '')
+    .trim()
+    .toLowerCase();
+  if (name && name !== 'desconhecido') return `n:${name}`;
+  return '';
+}
+
+function mergeStatRow(existing, incoming) {
+  if (!existing) return { ...incoming };
+  return {
+    ...existing,
+    ...incoming,
+    player_steamid: toSteamId64(incoming.player_steamid) || toSteamId64(existing.player_steamid) || incoming.player_steamid || existing.player_steamid,
+    player_name: incoming.player_name || existing.player_name,
+  };
+}
+
+/** Acumula placar entre pacotes GSI — evita perder payload.player quando allplayers traz só um terceiro. */
+function mergePlayerStats(existing, incoming, ownerSteamId, payloadPlayer) {
+  const merged = new Map();
+
+  const add = (p) => {
+    if (!p) return;
+    const k = statMergeKey(p);
+    if (!k) return;
+    merged.set(k, mergeStatRow(merged.get(k), p));
+  };
+
+  for (const p of existing || []) add(p);
+  for (const p of incoming || []) add(p);
+
+  if (payloadPlayer && typeof payloadPlayer === 'object') {
+    const self = mapPlayer(payloadPlayer);
+    const sid = toSteamId64(ownerSteamId) || toSteamId64(self.player_steamid);
+    if (sid) self.player_steamid = sid;
+    if (self.player_name || self.player_steamid) add(self);
+  }
+
+  return [...merged.values()];
+}
+
+function buildSelfPlayer(payloadPlayer, ownerSteamId) {
+  if (!payloadPlayer || typeof payloadPlayer !== 'object') return null;
+  const self = mapPlayer(payloadPlayer);
+  const sid = toSteamId64(ownerSteamId) || toSteamId64(self.player_steamid);
+  if (sid) self.player_steamid = sid;
+  if (!self.player_name && !self.player_steamid) return null;
+  return self;
+}
+
+function finalizeStatsForSave(playerStats, selfPlayer, userSid, username) {
+  const stats = mergePlayerStats(playerStats, [], '', null);
+  const sid = toSteamId64(userSid);
+  const self = selfPlayer ? { ...selfPlayer } : null;
+
+  if (self) {
+    if (sid) self.player_steamid = sid;
+    if (!self.player_name) self.player_name = username || 'Você';
+  } else if (sid) {
+    const placeholder = {
+      player_steamid: sid,
+      player_name: username || 'Você',
+      kills: 0,
+      assists: 0,
+      deaths: 0,
+      mvps: 0,
+      score: 0,
+    };
+    const idx = stats.findIndex((s) => toSteamId64(s.player_steamid) === sid);
+    if (idx >= 0) {
+      stats[idx] = mergeStatRow(stats[idx], placeholder);
+      return stats;
+    }
+    return [placeholder, ...stats];
+  }
+
+  if (!self) return stats;
+
+  const idx = sid
+    ? stats.findIndex((s) => toSteamId64(s.player_steamid) === sid)
+    : -1;
+  if (idx >= 0) {
+    stats[idx] = mergeStatRow(stats[idx], self);
+    return stats;
+  }
+
+  return [self, ...stats];
+}
+
 function parsePayload(payload) {
   const map = payload?.map || {};
   const mapName = normalizeMapName(map.name);
   const phase = normalizePhase(map.phase);
   const gameMode = getGameMode(map);
   const playerStats = extractPlayerStats(payload);
-  const scores = extractScores(map, gameMode, playerStats);
+  const scores = extractScores(map, gameMode, playerStats, payload);
 
   const ownerSteamId = extractOwnerSteamId(payload);
   const ownerTeam = extractOwnerTeam(payload);
@@ -122,7 +217,7 @@ function hasMeaningfulStats(live) {
   return elapsed > 45000;
 }
 
-function createLiveSession(mapName, phase, gameMode, scores, playerStats, ownerSteamId = '', ownerTeam = null) {
+function createLiveSession(mapName, phase, gameMode, scores, playerStats, ownerSteamId = '', ownerTeam = null, selfPlayer = null) {
   return {
     match_key: `${mapName}-${Date.now()}-${uuidv4().slice(0, 8)}`,
     map_name: mapName,
@@ -131,21 +226,32 @@ function createLiveSession(mapName, phase, gameMode, scores, playerStats, ownerS
     score_ct: scores.scoreCt,
     score_t: scores.scoreT,
     player_stats: playerStats,
+    self_player: selfPlayer,
     owner_steamid: ownerSteamId || '',
     owner_team: ownerTeam || null,
     started_at: new Date().toISOString(),
   };
 }
 
-function updateLiveSession(live, parsed) {
+function updateLiveSession(live, parsed, payload) {
   live.map_name = parsed.mapName || live.map_name;
   live.map_phase = parsed.phase || live.map_phase;
   live.game_mode = parsed.gameMode !== 'unknown' ? parsed.gameMode : live.game_mode;
   live.score_ct = parsed.scores.scoreCt;
   live.score_t = parsed.scores.scoreT;
-  if (parsed.playerStats.length) {
-    live.player_stats = parsed.playerStats;
+
+  const selfPlayer = buildSelfPlayer(payload?.player, parsed.ownerSteamId);
+  if (selfPlayer) live.self_player = mergeStatRow(live.self_player, selfPlayer);
+
+  if (parsed.playerStats.length || selfPlayer) {
+    live.player_stats = mergePlayerStats(
+      live.player_stats,
+      parsed.playerStats,
+      parsed.ownerSteamId,
+      payload?.player
+    );
   }
+
   if (parsed.ownerSteamId) {
     live.owner_steamid = parsed.ownerSteamId;
   }
@@ -181,7 +287,7 @@ async function persistMatch(userId, live, dbHelpers, reason) {
   let matchId = existing?.id;
   const finalPhase = reason === 'gameover' ? 'gameover' : 'finished';
 
-  const userRow = await get(`SELECT steam_id FROM users WHERE id = ?`, [userId]);
+  const userRow = await get(`SELECT steam_id, username FROM users WHERE id = ?`, [userId]);
   const userSid = toSteamId64(userRow?.steam_id);
   const liveOwner = toSteamId64(live.owner_steamid);
   let ownerSteam = liveOwner || userSid || live.owner_steamid || '';
@@ -189,6 +295,13 @@ async function persistMatch(userId, live, dbHelpers, reason) {
     ownerSteam = userSid;
   }
   if (ownerSteam) live.owner_steamid = ownerSteam;
+
+  const statsToSave = finalizeStatsForSave(
+    live.player_stats,
+    live.self_player,
+    userSid,
+    userRow?.username
+  );
 
   if (!matchId) {
     const insert = await run(
@@ -227,7 +340,7 @@ async function persistMatch(userId, live, dbHelpers, reason) {
     await run(`DELETE FROM player_stats WHERE match_id = ?`, [matchId]);
   }
 
-  for (const ps of live.player_stats || []) {
+  for (const ps of statsToSave) {
     ps.player_steamid = toSteamId64(ps.player_steamid) || ps.player_steamid;
     await run(
       `INSERT INTO player_stats (match_id, player_steamid, player_name, kills, assists, deaths, mvps, score)
@@ -304,6 +417,7 @@ async function processGsiPayload(userId, payload, dbHelpers) {
 
   if (needsNewSession && parsed.mapName && parsed.phase !== 'gameover') {
     const roomId = await getLiveRoomIdForUser(dbHelpers, userId);
+    const selfPlayer = buildSelfPlayer(payload?.player, parsed.ownerSteamId);
     live = createLiveSession(
       parsed.mapName,
       parsed.phase,
@@ -311,12 +425,13 @@ async function processGsiPayload(userId, payload, dbHelpers) {
       parsed.scores,
       parsed.playerStats,
       parsed.ownerSteamId,
-      parsed.ownerTeam
+      parsed.ownerTeam,
+      selfPlayer
     );
     if (roomId) live.room_id = roomId;
     liveStore.setLiveMatch(userId, live);
   } else if (live) {
-    updateLiveSession(live, parsed);
+    updateLiveSession(live, parsed, payload);
     const roomId = await getLiveRoomIdForUser(dbHelpers, userId);
     if (roomId) live.room_id = roomId;
     liveStore.setLiveMatch(userId, live);

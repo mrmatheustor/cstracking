@@ -148,6 +148,7 @@ function formatRepairLog(result) {
     lines.push(
       `[skip] #${row.matchId} ${row.user || ''} · ${row.map || ''} — ${row.reason}`
     );
+    if (row.userSteam) lines.push(`       sua conta Steam: ${row.userSteam}`);
     if (row.players) lines.push(`       placar: ${row.players}`);
   }
   if ((result.skipped || []).length > 15) {

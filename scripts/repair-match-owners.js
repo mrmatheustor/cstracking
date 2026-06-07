@@ -32,6 +32,7 @@ async function main() {
 
   for (const row of result.skipped.slice(0, 20)) {
     console.log(`[skip] #${row.matchId} ${row.user || ''} · ${row.map || ''} — ${row.reason}`);
+    if (row.userSteam) console.log(`       sua conta Steam: ${row.userSteam}`);
     if (row.players) console.log(`       placar: ${row.players}`);
   }
   if (result.skipped.length > 20) {

@@ -180,12 +180,22 @@ async function repairMatchOwners(db, options = {}) {
     }
 
     if (!userStat) {
+      const soloForeign =
+        stats.length === 1 &&
+        userSid &&
+        toSteamId64(stats[0].player_steamid) &&
+        toSteamId64(stats[0].player_steamid) !== userSid;
+
       skipped.push({
         matchId: match.id,
         map: match.map_name,
         user: match.username,
-        reason: 'seu Steam ID/nome não aparece no placar desta partida',
+        reason: soloForeign
+          ? 'partida gravada só com stats de outro jogador — suas stats não foram salvas; apague ou jogue de novo após o deploy'
+          : 'seu Steam ID/nome não aparece no placar desta partida',
+        userSteam: userSid || null,
         players: stats.map(formatStatLine).join(', '),
+        recoverable: false,
       });
       continue;
     }

@@ -31,7 +31,7 @@ router.post(
 
     const db = await getDb();
     const user = await db.get(
-      `SELECT id, gsi_auth_token FROM users WHERE gsi_token = ?`,
+      `SELECT id, gsi_auth_token, steam_id, login_via_steam FROM users WHERE gsi_token = ?`,
       [gsiToken]
     );
 
@@ -55,7 +55,9 @@ router.post(
       console.log(`[GSI] user_id=${user.id} map=${mapName || '-'} mode=${mode} phase=${phase} inGame=${inGame}`);
 
       const steamId = extractOwnerSteamId(payload);
-      if (steamId) {
+      if (steamId && !user.login_via_steam) {
+        await db.run(`UPDATE users SET steam_id = ? WHERE id = ?`, [steamId, user.id]);
+      } else if (steamId && !user.steam_id) {
         await db.run(`UPDATE users SET steam_id = ? WHERE id = ?`, [steamId, user.id]);
       }
 
